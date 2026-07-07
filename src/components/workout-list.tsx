@@ -1,11 +1,12 @@
 import Link from "next/link";
 
+import { CompleteWorkoutButton } from "@/components/complete-workout-button";
 import { SportBadge } from "@/components/sport-badge";
 import { Badge } from "@/components/ui/badge";
 import type { Workout } from "@/db/schema";
 import { formatDate, formatDistance, formatDuration, formatPace } from "@/lib/format";
 
-function metricsSummary(w: Workout): string {
+export function metricsSummary(w: Workout): string {
   const parts: string[] = [];
   const duration = w.status === "completed" ? w.actualDurationSec : w.plannedDurationSec;
   const distance = w.status === "completed" ? w.actualDistanceM : w.plannedDistanceM;
@@ -32,10 +33,10 @@ export function WorkoutList({ workouts }: { workouts: Workout[] }) {
   return (
     <ul className="space-y-2">
       {workouts.map((w) => (
-        <li key={w.id}>
+        <li key={w.id} className="flex items-center gap-2">
           <Link
             href={`/workouts/${w.id}`}
-            className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 transition-colors hover:bg-accent"
+            className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-md border px-3 py-2 transition-colors hover:bg-accent"
           >
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -51,6 +52,9 @@ export function WorkoutList({ workouts }: { workouts: Workout[] }) {
               {w.status}
             </Badge>
           </Link>
+          {w.status === "planned" && (
+            <CompleteWorkoutButton workoutId={w.id} />
+          )}
         </li>
       ))}
     </ul>

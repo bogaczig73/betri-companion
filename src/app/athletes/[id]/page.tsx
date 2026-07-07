@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import { FitUploadButton } from "@/components/fit-upload-button";
 import { WorkoutList } from "@/components/workout-list";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,12 +46,29 @@ export default async function AthleteDetailPage({
             {athlete.email} · {athlete.timezone}
           </p>
         </div>
-        <Button
-          nativeButton={false}
-          render={<Link href={`/workouts/new?athlete=${athlete.id}`} />}
-        >
-          Add workout
-        </Button>
+        <div className="flex items-start gap-2">
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href={`/chat/${athlete.id}`} />}
+          >
+            Chat
+          </Button>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href={`/lactate/new?athlete=${athlete.id}`} />}
+          >
+            Lactate test
+          </Button>
+          <FitUploadButton athleteId={athlete.id} />
+          <Button
+            nativeButton={false}
+            render={<Link href={`/workouts/new?athlete=${athlete.id}`} />}
+          >
+            Add workout
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

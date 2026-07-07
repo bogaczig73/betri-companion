@@ -143,6 +143,29 @@ export async function updateWorkout(
   redirect(redirectTarget(actingUser.id, existing.athleteId));
 }
 
+export async function completeWorkout(workoutId: string) {
+  const id = z.uuid().parse(workoutId);
+  const existing = await getWorkoutById(id);
+  if (!existing) throw new Error("Workout not found");
+  if (existing.status === "completed") return;
+
+  await authorizeAthleteAccess(existing.athleteId);
+
+  // "Done as planned": prescription becomes the actuals unless actuals were
+  // already recorded. Details can be edited afterwards on the workout page.
+  await db
+    .update(workouts)
+    .set({
+      status: "completed",
+      actualDurationSec:
+        existing.actualDurationSec ?? existing.plannedDurationSec,
+      actualDistanceM: existing.actualDistanceM ?? existing.plannedDistanceM,
+    })
+    .where(eq(workouts.id, id));
+
+  revalidatePath("/", "layout");
+}
+
 export async function deleteWorkout(workoutId: string) {
   const id = z.uuid().parse(workoutId);
   const existing = await getWorkoutById(id);

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { FitUploadButton } from "@/components/fit-upload-button";
 import { WorkoutList } from "@/components/workout-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -69,9 +70,12 @@ async function AthleteDashboard({ athleteId }: { athleteId: string }) {
         <p className="text-sm text-muted-foreground">
           Coach: {coaches.map((c) => c.name).join(", ") || "none"}
         </p>
-        <Button nativeButton={false} render={<Link href="/workouts/new" />}>
-          Log workout
-        </Button>
+        <div className="flex items-start gap-2">
+          <FitUploadButton athleteId={athleteId} />
+          <Button nativeButton={false} render={<Link href="/workouts/new" />}>
+            Log workout
+          </Button>
+        </div>
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

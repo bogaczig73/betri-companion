@@ -31,6 +31,19 @@ npm run dev
 - `npm run db:migrate` — apply migrations
 - `npm run db:studio` — browse data
 
+## Lactate engine
+
+`src/lib/lactate/` is a pure, framework-free threshold engine ported from the
+[`lactater`](https://fmmattioni.github.io/lactater/) R package and validated
+against its documented demo (OBLA, Bsln+, Log-log, Dmax family, LTP, LTratio).
+
+- `npm run validate:lactate` — asserts all 17 methods reproduce the reference
+  within ±4 W. Run after touching anything under `src/lib/lactate/`.
+
+The core (`analyze/methods/fit/bspline/types`) works in ascending intensity
+space; `sport.ts` + `analysis.ts` adapt it to run (pace/km), swim (pace/100m),
+and bike (watts).
+
 ## Testing without auth
 
 There is no auth yet (testing phase). The header has an **"Acting as"
@@ -43,9 +56,9 @@ so swapping in a real session later is a drop-in.
 - [x] Phase 0 — foundation: scaffold, Neon + Drizzle + pgvector, user switcher, Vercel deploy
 - [x] Phase 1 — core domain: workouts CRUD, roster, athlete dashboard
 - [x] Phase 2 — training plan builder
-- [ ] Phase 3 — FIT file upload (first data source; provider APIs pending approval)
-- [ ] Phase 4 — chat with workout mentions
-- [ ] Phase 5 — lactate testing module
+- [x] Phase 3 — FIT file upload (first data source; provider APIs pending approval)
+- [x] Phase 4 — chat with workout mentions
+- [x] Phase 5 — lactate testing module (LT1/LT2 across methods; engine validated vs lactater)
 - [ ] Phase 6 — science paper knowledge base (RAG)
 - [ ] Phase 7 — AI workout analysis (grounded)
 - [ ] Phase 8 — Strava + Garmin + Apple Health export

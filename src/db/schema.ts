@@ -172,6 +172,46 @@ export const planAssignments = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Raw activities (ingested data before/after normalization)
+// ---------------------------------------------------------------------------
+
+export const providerEnum = pgEnum("provider", [
+  "fit_upload",
+  "strava",
+  "garmin",
+  "apple_health",
+]);
+
+// Raw payload from any ingestion source, kept so workouts can be reprocessed
+// without re-syncing/re-uploading. externalId is the provider's activity id,
+// or the file's SHA-256 for uploads (dedupe key per athlete+provider).
+export const rawActivities = pgTable(
+  "raw_activities",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    athleteId: uuid("athlete_id")
+      .notNull()
+      .references(() => users.id),
+    uploadedById: uuid("uploaded_by_id").references(() => users.id),
+    provider: providerEnum("provider").notNull(),
+    externalId: text("external_id").notNull(),
+    fileName: text("file_name"),
+    payload: jsonb("payload").notNull(),
+    // Set once normalized into a workout.
+    workoutId: uuid("workout_id").references(() => workouts.id),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("raw_activities_dedupe").on(
+      t.athleteId,
+      t.provider,
+      t.externalId,
+    ),
+    index("raw_activities_athlete_idx").on(t.athleteId),
+  ],
+);
+
+// ---------------------------------------------------------------------------
 // Workouts
 // ---------------------------------------------------------------------------
 
@@ -221,6 +261,124 @@ export const workouts = pgTable(
   (t) => [index("workouts_athlete_date_idx").on(t.athleteId, t.date)],
 );
 
+// ---------------------------------------------------------------------------
+// Chat (coach ↔ athlete)
+// ---------------------------------------------------------------------------
+
+// One thread per coach–athlete pair, created lazily on first visit. Keeping
+// coach/athlete as explicit columns (rather than a generic participants table)
+// matches the product model; group chat would be a new table, not a refactor
+// of this one.
+export const chatThreads = pgTable(
+  "chat_threads",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    coachId: uuid("coach_id")
+      .notNull()
+      .references(() => users.id),
+    athleteId: uuid("athlete_id")
+      .notNull()
+      .references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("chat_threads_pair_unique").on(t.coachId, t.athleteId)],
+);
+
+export const messages = pgTable(
+  "messages",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => chatThreads.id),
+    senderId: uuid("sender_id")
+      .notNull()
+      .references(() => users.id),
+    body: text("body").notNull(),
+    ...timestamps,
+  },
+  (t) => [index("messages_thread_created_idx").on(t.threadId, t.createdAt)],
+);
+
+// A message can @-mention one or more of the athlete's workouts; mentioned
+// workouts render as inline cards in the chat.
+export const messageWorkoutMentions = pgTable(
+  "message_workout_mentions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    messageId: uuid("message_id")
+      .notNull()
+      .references(() => messages.id),
+    workoutId: uuid("workout_id")
+      .notNull()
+      .references(() => workouts.id),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("message_workout_mentions_unique").on(t.messageId, t.workoutId),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// Lactate testing
+// ---------------------------------------------------------------------------
+
+// An incremental step (graded exercise) test for one athlete in one sport.
+// Threshold estimation happens in the pure engine at src/lib/lactate; nothing
+// is precomputed here — the stored steps are the source of truth so results can
+// be re-derived if methods change. Baseline (resting/warm-up) is stored on the
+// test and optionally fed into the curve fit.
+export const lactateTests = pgTable(
+  "lactate_tests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    athleteId: uuid("athlete_id")
+      .notNull()
+      .references(() => users.id),
+    conductedById: uuid("conducted_by_id").references(() => users.id),
+    // Only run | bike | swim have a meaningful lactate protocol; enforced in
+    // the action layer, not the enum (which also carries "strength").
+    sport: sportEnum("sport").notNull(),
+    // Set when the samples were taken during a workout (field test); the
+    // workout page then embeds this test's steps + analysis inline.
+    workoutId: uuid("workout_id").references(() => workouts.id),
+    testDate: date("test_date").notNull(),
+    title: text("title"),
+    notes: text("notes"),
+    // Baseline point. intensityValue is sport-native: watts (bike) or seconds
+    // per km / per 100m (run / swim), matching lactate_steps.intensity_value.
+    baselineLactate: integer("baseline_lactate_milli"), // mmol/L × 1000
+    baselineIntensityValue: integer("baseline_intensity_value"),
+    includeBaseline: boolean("include_baseline").notNull().default(false),
+    ...timestamps,
+  },
+  (t) => [
+    index("lactate_tests_athlete_idx").on(t.athleteId, t.testDate),
+    index("lactate_tests_workout_idx").on(t.workoutId),
+  ],
+);
+
+// One stage of the protocol. intensityValue is the recorded, sport-native
+// intensity: integer watts for bike, integer seconds (per km / per 100m) for
+// run / swim. Lactate is stored as milli-mmol/L (×1000) to keep an integer
+// column while preserving two decimals.
+export const lactateSteps = pgTable(
+  "lactate_steps",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    testId: uuid("test_id")
+      .notNull()
+      .references(() => lactateTests.id),
+    stageNumber: integer("stage_number").notNull(), // 1-based, ascending effort
+    intensityValue: integer("intensity_value"),
+    lactate: integer("lactate_milli"), // mmol/L × 1000
+    heartRate: integer("heart_rate"),
+    durationSec: integer("duration_sec"),
+    ...timestamps,
+  },
+  (t) => [index("lactate_steps_test_idx").on(t.testId, t.stageNumber)],
+);
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type CoachAthlete = typeof coachAthletes.$inferSelect;
@@ -235,3 +393,10 @@ export type PlannedSession = typeof plannedSessions.$inferSelect;
 export type PlanAssignment = typeof planAssignments.$inferSelect;
 export type PeriodizationPhase =
   (typeof periodizationPhaseEnum.enumValues)[number];
+export type RawActivity = typeof rawActivities.$inferSelect;
+export type Provider = (typeof providerEnum.enumValues)[number];
+export type ChatThread = typeof chatThreads.$inferSelect;
+export type Message = typeof messages.$inferSelect;
+export type MessageWorkoutMention = typeof messageWorkoutMentions.$inferSelect;
+export type LactateTest = typeof lactateTests.$inferSelect;
+export type LactateStep = typeof lactateSteps.$inferSelect;

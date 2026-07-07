@@ -35,6 +35,38 @@ export function formatPace(
   return `${m}:${s.toString().padStart(2, "0")}${unit}`;
 }
 
+// Pace text ("4:30" or plain seconds "270") → seconds. Null if unparseable.
+export function parsePaceInput(str: string): number | null {
+  const s = str.trim();
+  if (!s) return null;
+  if (s.includes(":")) {
+    const [m, sec] = s.split(":");
+    const mm = Number(m);
+    const ss = Number(sec);
+    if (!Number.isFinite(mm) || !Number.isFinite(ss) || ss >= 60) return null;
+    return Math.round(mm * 60 + ss);
+  }
+  const n = Number(s);
+  return Number.isFinite(n) ? Math.round(n) : null;
+}
+
+export function formatPaceSeconds(sec: number): string {
+  const s = Math.round(sec);
+  const m = Math.floor(s / 60);
+  return `${m}:${(s % 60).toString().padStart(2, "0")}`;
+}
+
+// Chat timestamps. Rendered server-side in server time (assumption: fine
+// until the per-user timezone pass).
+export function formatDateTime(d: Date): string {
+  return d.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function formatDate(isoDate: string): string {
   return new Date(`${isoDate}T00:00:00`).toLocaleDateString("en-GB", {
     weekday: "short",

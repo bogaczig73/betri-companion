@@ -18,7 +18,13 @@ export function AppHeader({
           { href: "/plans", label: "Plans" },
         ]
       : []),
-    // Coming in later phases: Chat, Lactate, Library
+    ...(actingUser
+      ? [
+          { href: "/chat", label: "Chat" },
+          { href: "/lactate", label: "Lactate" },
+        ]
+      : []),
+    // Coming in later phases: Library
   ];
 
   return (

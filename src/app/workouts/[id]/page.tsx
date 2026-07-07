@@ -1,14 +1,27 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import { CompleteWorkoutButton } from "@/components/complete-workout-button";
+import { AddLactateButton } from "@/components/lactate/add-lactate-button";
+import { LactateTestDetail } from "@/components/lactate/lactate-test-detail";
 import { SportBadge } from "@/components/sport-badge";
 import { WorkoutForm } from "@/components/workout-form";
 import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   canAccessAthlete,
   getUserById,
   getWorkoutById,
 } from "@/lib/access";
 import { getActingUser } from "@/lib/acting-user";
+import { isLactateSport } from "@/lib/lactate";
+import { getTestForWorkout, testBaseline, testSport } from "@/lib/lactate-data";
 
 export default async function WorkoutDetailPage({
   params,
@@ -23,25 +36,74 @@ export default async function WorkoutDetailPage({
   if (!workout) notFound();
   if (!(await canAccessAthlete(actingUser, workout.athleteId))) redirect("/");
 
-  const athlete = await getUserById(workout.athleteId);
+  const [athlete, lactate] = await Promise.all([
+    getUserById(workout.athleteId),
+    isLactateSport(workout.sport)
+      ? getTestForWorkout(workout.id)
+      : Promise.resolve(null),
+  ]);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {workout.title}
-          </h1>
-          <SportBadge sport={workout.sport} />
-          <Badge variant={workout.status === "completed" ? "default" : "outline"}>
-            {workout.status}
-          </Badge>
+    <div className="mx-auto max-w-4xl space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {workout.title}
+            </h1>
+            <SportBadge sport={workout.sport} />
+            <Badge variant={workout.status === "completed" ? "default" : "outline"}>
+              {workout.status}
+            </Badge>
+          </div>
+          <p className="text-muted-foreground">
+            {athlete?.name} · {workout.source}
+          </p>
         </div>
-        <p className="text-muted-foreground">
-          {athlete?.name} · {workout.source}
-        </p>
+        {workout.status === "planned" && (
+          <CompleteWorkoutButton workoutId={workout.id} />
+        )}
       </div>
-      <WorkoutForm athleteId={workout.athleteId} workout={workout} />
+      <div className="mx-auto w-full max-w-2xl">
+        <WorkoutForm athleteId={workout.athleteId} workout={workout} />
+      </div>
+
+      {isLactateSport(workout.sport) && (
+        <Card>
+          <CardHeader>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <CardTitle>Lactate</CardTitle>
+                <CardDescription>
+                  {lactate
+                    ? "Samples taken during this session, analyzed with the same methods as a full step test."
+                    : "Took lactate samples during this session? Enter them here to analyze thresholds."}
+                </CardDescription>
+              </div>
+              {lactate && (
+                <Link
+                  href={`/lactate/${lactate.test.id}`}
+                  className="text-sm text-muted-foreground hover:underline"
+                >
+                  Open as test →
+                </Link>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {lactate ? (
+              <LactateTestDetail
+                testId={lactate.test.id}
+                sport={testSport(lactate.test)}
+                steps={lactate.steps}
+                baseline={testBaseline(lactate.test)}
+              />
+            ) : (
+              <AddLactateButton workoutId={workout.id} />
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
