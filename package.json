@@ -14,10 +14,12 @@
     "validate:lactate": "tsx scripts/validate-lactate.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
     "@base-ui/react": "^1.6.0",
     "@garmin/fitsdk": "^21.208.0",
     "@neondatabase/serverless": "^1.1.0",
     "@tanstack/react-query": "^5.101.2",
+    "@vercel/blob": "^2.5.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",

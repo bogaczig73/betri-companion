@@ -22,9 +22,9 @@ export function AppHeader({
       ? [
           { href: "/chat", label: "Chat" },
           { href: "/lactate", label: "Lactate" },
+          { href: "/papers", label: "Library" },
         ]
       : []),
-    // Coming in later phases: Library
   ];
 
   return (

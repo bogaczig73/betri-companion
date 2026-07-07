@@ -44,6 +44,30 @@ The core (`analyze/methods/fit/bspline/types`) works in ascending intensity
 space; `sport.ts` + `analysis.ts` adapt it to run (pace/km), swim (pace/100m),
 and bike (watts).
 
+## Paper library (Phase 6)
+
+No embedding/chunking pipeline yet — deliberately. Uploaded PDFs are stored in
+a **private Vercel Blob** store (served via the authenticated
+`/api/papers/[id]/file` proxy) and registered with the **Anthropic Files API**
+(`anthropic_file_id` on `science_papers`). Claude extracts
+title/authors/year/journal/abstract at upload time.
+
+"Ask the library" (`/papers`) answers questions grounded in the papers:
+1. If more than 5 papers are ready, Claude triages a compact catalog
+   (titles + abstracts) and picks the relevant ones.
+2. The chosen PDFs are attached as `document` blocks (`file_id` source) with
+   **native citations enabled** and prompt caching on the document prefix; the
+   answer renders with page-level citation markers linking back to the PDFs.
+
+The retrieval interface lives in `src/lib/paper-qa.ts`; when the library
+outgrows catalog triage (~30–50 papers), swap `selectPapers` for a pgvector
+similarity search over the (already-created, dormant) `paper_chunks` table.
+Model + provider config is centralized in `src/lib/ai.ts`.
+
+Requires `ANTHROPIC_API_KEY` and `BLOB_READ_WRITE_TOKEN`; the `/papers` page
+shows a setup banner listing whichever is missing, and failed papers can be
+reprocessed from the UI after fixing the env.
+
 ## Testing without auth
 
 There is no auth yet (testing phase). The header has an **"Acting as"
@@ -59,7 +83,7 @@ so swapping in a real session later is a drop-in.
 - [x] Phase 3 — FIT file upload (first data source; provider APIs pending approval)
 - [x] Phase 4 — chat with workout mentions
 - [x] Phase 5 — lactate testing module (LT1/LT2 across methods; engine validated vs lactater)
-- [ ] Phase 6 — science paper knowledge base (RAG)
+- [x] Phase 6 — science paper library (Blob + Anthropic Files API + native citations; pgvector deferred)
 - [ ] Phase 7 — AI workout analysis (grounded)
 - [ ] Phase 8 — Strava + Garmin + Apple Health export
 - [ ] Phase 9 — AI training-plan evaluator

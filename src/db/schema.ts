@@ -10,6 +10,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  vector,
 } from "drizzle-orm/pg-core";
 
 import type { WorkoutStructure } from "@/lib/structure";
@@ -379,6 +380,69 @@ export const lactateSteps = pgTable(
   (t) => [index("lactate_steps_test_idx").on(t.testId, t.stageNumber)],
 );
 
+// ---------------------------------------------------------------------------
+// Science paper library (Phase 6)
+// ---------------------------------------------------------------------------
+
+// Pipeline state for a paper: "processing" while the PDF is being registered
+// with the Anthropic Files API and metadata is being extracted, "ready" once
+// usable in analysis, "failed" with statusMessage set (reprocessable).
+export const paperStatusEnum = pgEnum("paper_status", [
+  "processing",
+  "ready",
+  "failed",
+]);
+
+// One uploaded training-science PDF. The original lives in Vercel Blob
+// (private store, served through an authenticated route); anthropicFileId is
+// the same document registered with the Anthropic Files API so analysis calls
+// can attach it natively with citations. Metadata (title/authors/abstract) is
+// extracted by the model at upload time and is editable later. The library is
+// shared across all users; sha256 is the global dedupe key.
+export const sciencePapers = pgTable(
+  "science_papers",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    uploadedById: uuid("uploaded_by_id").references(() => users.id),
+    title: text("title").notNull(), // falls back to filename until extracted
+    authors: text("authors"), // free-form, comma-separated
+    year: integer("year"),
+    journal: text("journal"),
+    abstract: text("abstract"),
+    fileName: text("file_name").notNull(),
+    fileSizeBytes: integer("file_size_bytes").notNull(),
+    sha256: text("sha256").notNull(),
+    blobPathname: text("blob_pathname").notNull(),
+    blobUrl: text("blob_url").notNull(),
+    anthropicFileId: text("anthropic_file_id"),
+    status: paperStatusEnum("status").notNull().default("processing"),
+    statusMessage: text("status_message"),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("science_papers_sha256_unique").on(t.sha256)],
+);
+
+// Dormant until the library outgrows catalog-based selection (~30–50 papers):
+// chunked paper text with pgvector embeddings for similarity retrieval. The
+// retrieval interface in src/lib/papers.ts is written so switching from
+// catalog selection to embeddings is a data backfill, not a redesign.
+export const paperChunks = pgTable(
+  "paper_chunks",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    paperId: uuid("paper_id")
+      .notNull()
+      .references(() => sciencePapers.id),
+    chunkIndex: integer("chunk_index").notNull(),
+    content: text("content").notNull(),
+    embedding: vector("embedding", { dimensions: 1536 }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("paper_chunks_paper_chunk_unique").on(t.paperId, t.chunkIndex),
+  ],
+);
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type CoachAthlete = typeof coachAthletes.$inferSelect;
@@ -400,3 +464,6 @@ export type Message = typeof messages.$inferSelect;
 export type MessageWorkoutMention = typeof messageWorkoutMentions.$inferSelect;
 export type LactateTest = typeof lactateTests.$inferSelect;
 export type LactateStep = typeof lactateSteps.$inferSelect;
+export type SciencePaper = typeof sciencePapers.$inferSelect;
+export type PaperStatus = (typeof paperStatusEnum.enumValues)[number];
+export type PaperChunk = typeof paperChunks.$inferSelect;
