@@ -139,7 +139,8 @@ Rules:
 - Base every scientific claim on the attached papers so it carries a citation.
 - When you add reasoning or practical interpretation beyond the papers, mark it clearly (e.g. "Beyond the papers: ..." ).
 - If the papers don't address the question, say so plainly instead of speculating.
-- Keep answers practical for a coach: concise paragraphs, concrete numbers from the papers where available.`;
+- Keep answers practical for a coach: concise paragraphs, concrete numbers from the papers where available.
+- Format with simple Markdown only: short paragraphs, "- " bullet lists, numbered lists, **bold** and \`inline code\`. No tables, no headings, no nested lists, no links.`;
 
 export async function answerFromLibrary(
   question: string,

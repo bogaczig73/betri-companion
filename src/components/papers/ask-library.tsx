@@ -3,23 +3,21 @@
 import { Sparkles } from "lucide-react";
 import { useState } from "react";
 
+import {
+  AnswerMarkdown,
+  withCiteMarkers,
+  type AnswerRef,
+} from "@/components/papers/answer-markdown";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import type { LibraryAnswer } from "@/lib/paper-qa";
+import type { LibraryAnswer, LibraryCitation } from "@/lib/paper-qa";
 
-type RefEntry = {
-  n: number;
-  paperId: string;
-  paperTitle: string;
-  startPage: number;
-  endPage: number;
-  citedText: string;
-};
+type RefEntry = AnswerRef & { paperId: string };
 
-function pageLabel(r: { startPage: number; endPage: number }) {
+function pageLabel(c: { startPage: number; endPage: number }) {
   // end_page_number is exclusive in the citations API.
-  const last = r.endPage - 1;
-  return last > r.startPage ? `pp. ${r.startPage}–${last}` : `p. ${r.startPage}`;
+  const last = c.endPage - 1;
+  return last > c.startPage ? `pp. ${c.startPage}–${last}` : `p. ${c.startPage}`;
 }
 
 export function AskLibrary({ disabled }: { disabled?: boolean }) {
@@ -50,23 +48,35 @@ export function AskLibrary({ disabled }: { disabled?: boolean }) {
     }
   }
 
-  // Number citations in reading order, deduping identical passages.
+  // Number citations in reading order, deduping identical passages, and
+  // stitch the answer blocks back into one markdown source with citation
+  // markers embedded where each cited block ends.
   const refs: RefEntry[] = [];
-  const refKey = (c: Omit<RefEntry, "n">) =>
-    `${c.paperId}:${c.startPage}:${c.endPage}:${c.citedText}`;
   const refByKey = new Map<string, RefEntry>();
-  const blockRefs: RefEntry[][] = (answer?.blocks ?? []).map((block) =>
-    block.citations.map((c) => {
-      const key = refKey(c);
-      let entry = refByKey.get(key);
-      if (!entry) {
-        entry = { n: refs.length + 1, ...c };
-        refs.push(entry);
-        refByKey.set(key, entry);
-      }
-      return entry;
-    }),
-  );
+  const refFor = (c: LibraryCitation): RefEntry => {
+    const key = `${c.paperId}:${c.startPage}:${c.endPage}:${c.citedText}`;
+    let entry = refByKey.get(key);
+    if (!entry) {
+      entry = {
+        n: refs.length + 1,
+        paperId: c.paperId,
+        paperTitle: c.paperTitle,
+        pageLabel: pageLabel(c),
+        citedText: c.citedText,
+      };
+      refs.push(entry);
+      refByKey.set(key, entry);
+    }
+    return entry;
+  };
+  const source = (answer?.blocks ?? [])
+    .map((block) =>
+      withCiteMarkers(
+        block.text,
+        block.citations.map((c) => refFor(c).n),
+      ),
+    )
+    .join("");
 
   return (
     <div className="space-y-3">
@@ -96,22 +106,7 @@ export function AskLibrary({ disabled }: { disabled?: boolean }) {
 
       {answer && (
         <div className="space-y-3 rounded-md border p-4">
-          <p className="whitespace-pre-wrap text-sm leading-relaxed">
-            {answer.blocks.map((block, i) => (
-              <span key={i}>
-                {block.text}
-                {blockRefs[i].map((r) => (
-                  <sup
-                    key={r.n}
-                    title={`${r.paperTitle}, ${pageLabel(r)}: “${r.citedText.slice(0, 300)}”`}
-                    className="ml-0.5 cursor-help font-medium text-primary"
-                  >
-                    [{r.n}]
-                  </sup>
-                ))}
-              </span>
-            ))}
-          </p>
+          <AnswerMarkdown source={source} refs={refs} />
 
           {refs.length > 0 && (
             <div className="border-t pt-3">
@@ -130,7 +125,7 @@ export function AskLibrary({ disabled }: { disabled?: boolean }) {
                     >
                       {r.paperTitle}
                     </a>
-                    , {pageLabel(r)}
+                    , {r.pageLabel}
                   </li>
                 ))}
               </ol>
@@ -140,10 +135,7 @@ export function AskLibrary({ disabled }: { disabled?: boolean }) {
           <p className="text-xs text-muted-foreground">
             Sources consulted:{" "}
             {answer.papers
-              .map(
-                (p) =>
-                  `${p.title}${p.year ? ` (${p.year})` : ""}`,
-              )
+              .map((p) => `${p.title}${p.year ? ` (${p.year})` : ""}`)
               .join(" · ")}
           </p>
         </div>
