@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(command -v vercel)",
+      "Bash(vercel whoami *)",
+      "mcp__Neon__list_projects",
+      "mcp__Neon__get_database_tables",
+      "mcp__Neon__create_project",
+      "Bash(mv .claude /private/tmp/claude-501/-Users-radimbohac--fun-betri-companion/0766747a-5327-49e1-bca8-f3ce6102b3b9/scratchpad/.claude-backup)",
+      "Bash(npx -y create-next-app@latest . --ts --tailwind --eslint --app --src-dir --turbopack --import-alias \"@/*\" --use-npm --yes)"
+    ]
+  }
+}
