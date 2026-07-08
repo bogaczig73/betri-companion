@@ -6,7 +6,12 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import { sciencePapers, type SciencePaper } from "@/db/schema";
-import { AI_MODEL, FILES_API_BETA, getAnthropic, isAiConfigured } from "@/lib/ai";
+import {
+  AI_MODEL_LIGHT,
+  FILES_API_BETA,
+  getAnthropic,
+  isAiConfigured,
+} from "@/lib/ai";
 
 export function isBlobConfigured(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
@@ -194,7 +199,7 @@ export async function processPaper(
     }
 
     const response = await client.beta.messages.create({
-      model: AI_MODEL,
+      model: AI_MODEL_LIGHT,
       max_tokens: 2048,
       betas: [FILES_API_BETA],
       output_config: {

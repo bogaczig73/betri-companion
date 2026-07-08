@@ -3,7 +3,12 @@ import { and, eq, isNotNull, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import { sciencePapers } from "@/db/schema";
-import { AI_MODEL, FILES_API_BETA, getAnthropic } from "@/lib/ai";
+import {
+  AI_MODEL,
+  AI_MODEL_LIGHT,
+  FILES_API_BETA,
+  getAnthropic,
+} from "@/lib/ai";
 
 // ---------------------------------------------------------------------------
 // Retrieval interface
@@ -81,7 +86,7 @@ async function selectPapers(
     .join("\n---\n");
 
   const response = await client.messages.create({
-    model: AI_MODEL,
+    model: AI_MODEL_LIGHT,
     max_tokens: 1024,
     output_config: {
       format: {
@@ -167,9 +172,12 @@ export async function answerFromLibrary(
     }),
   );
 
+  // Sonnet 5 runs adaptive thinking by default (spend scales with question
+  // difficulty), and thinking counts against max_tokens — keep headroom so
+  // the visible answer never truncates.
   const response = await client.beta.messages.create({
     model: AI_MODEL,
-    max_tokens: 4096,
+    max_tokens: 8192,
     betas: [FILES_API_BETA],
     system: QA_SYSTEM,
     messages: [
