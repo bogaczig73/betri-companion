@@ -50,6 +50,13 @@ export default async function AthleteDetailPage({
           <Button
             variant="outline"
             nativeButton={false}
+            render={<Link href={`/calendar?athlete=${athlete.id}`} />}
+          >
+            Calendar
+          </Button>
+          <Button
+            variant="outline"
+            nativeButton={false}
             render={<Link href={`/chat/${athlete.id}`} />}
           >
             Chat

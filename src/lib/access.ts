@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lte } from "drizzle-orm";
 
 import { db } from "@/db";
 import { coachAthletes, users, workouts, type User, type Workout } from "@/db/schema";
@@ -85,6 +85,27 @@ export async function getWorkoutsForAthlete(
     .from(workouts)
     .where(and(eq(workouts.athleteId, athleteId), isNull(workouts.deletedAt)))
     .orderBy(desc(workouts.date), desc(workouts.createdAt));
+}
+
+// Both bounds inclusive — the calendar passes the first and last day of the
+// visible grid, which can spill into the neighbouring months.
+export async function getWorkoutsInRange(
+  athleteId: string,
+  fromDate: string,
+  toDate: string,
+): Promise<Workout[]> {
+  return db
+    .select()
+    .from(workouts)
+    .where(
+      and(
+        eq(workouts.athleteId, athleteId),
+        gte(workouts.date, fromDate),
+        lte(workouts.date, toDate),
+        isNull(workouts.deletedAt),
+      ),
+    )
+    .orderBy(asc(workouts.date), asc(workouts.createdAt));
 }
 
 export async function getWorkoutById(id: string): Promise<Workout | null> {

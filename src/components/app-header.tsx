@@ -20,6 +20,7 @@ export function AppHeader({
       : []),
     ...(actingUser
       ? [
+          { href: "/calendar", label: "Calendar" },
           { href: "/chat", label: "Chat" },
           { href: "/lactate", label: "Lactate" },
           { href: "/papers", label: "Library" },

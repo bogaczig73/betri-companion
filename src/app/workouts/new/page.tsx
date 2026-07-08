@@ -7,9 +7,9 @@ import { getActingUser } from "@/lib/acting-user";
 export default async function NewWorkoutPage({
   searchParams,
 }: {
-  searchParams: Promise<{ athlete?: string }>;
+  searchParams: Promise<{ athlete?: string; date?: string }>;
 }) {
-  const { athlete: athleteParam } = await searchParams;
+  const { athlete: athleteParam, date: dateParam } = await searchParams;
   const actingUser = await getActingUser();
   if (!actingUser) redirect("/");
 
@@ -28,7 +28,14 @@ export default async function NewWorkoutPage({
         <h1 className="text-2xl font-semibold tracking-tight">New workout</h1>
         <p className="text-muted-foreground">for {athlete.name}</p>
       </div>
-      <WorkoutForm athleteId={athleteId} />
+      <WorkoutForm
+        athleteId={athleteId}
+        defaultDate={
+          dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
+            ? dateParam
+            : undefined
+        }
+      />
     </div>
   );
 }

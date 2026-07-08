@@ -28,9 +28,11 @@ function FieldError({ errors }: { errors?: string[] }) {
 export function WorkoutForm({
   athleteId,
   workout,
+  defaultDate,
 }: {
   athleteId: string;
   workout?: Workout;
+  defaultDate?: string;
 }) {
   const action = workout ? updateWorkout.bind(null, workout.id) : createWorkout;
   const [state, formAction, isPending] = useActionState<
@@ -84,7 +86,9 @@ export function WorkoutForm({
             id="date"
             name="date"
             type="date"
-            defaultValue={workout?.date ?? new Date().toISOString().slice(0, 10)}
+            defaultValue={
+              workout?.date ?? defaultDate ?? new Date().toISOString().slice(0, 10)
+            }
           />
           <FieldError errors={errors.date} />
         </div>

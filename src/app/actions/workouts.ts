@@ -143,6 +143,94 @@ export async function updateWorkout(
   redirect(redirectTarget(actingUser.id, existing.athleteId));
 }
 
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+// Drag-and-drop reschedule from the calendar: only the date changes.
+export async function moveWorkout(workoutId: string, newDate: string) {
+  const id = z.uuid().parse(workoutId);
+  const date = isoDate.parse(newDate);
+  const existing = await getWorkoutById(id);
+  if (!existing) throw new Error("Workout not found");
+
+  await authorizeAthleteAccess(existing.athleteId);
+
+  await db.update(workouts).set({ date }).where(eq(workouts.id, id));
+  revalidatePath("/", "layout");
+}
+
+// Copy a workout's prescription onto another day as a fresh planned session
+// (alt-drag and "repeat a recent session" in the calendar). Actuals, notes
+// and plan trace columns intentionally don't carry over.
+export async function copyWorkoutToDate(workoutId: string, newDate: string) {
+  const id = z.uuid().parse(workoutId);
+  const date = isoDate.parse(newDate);
+  const existing = await getWorkoutById(id);
+  if (!existing) throw new Error("Workout not found");
+
+  const actingUser = await authorizeAthleteAccess(existing.athleteId);
+
+  await db.insert(workouts).values({
+    athleteId: existing.athleteId,
+    createdById: actingUser.id,
+    sport: existing.sport,
+    status: "planned",
+    source: "manual",
+    title: existing.title,
+    date,
+    description: existing.description,
+    plannedDurationSec: existing.plannedDurationSec,
+    plannedDistanceM: existing.plannedDistanceM,
+    structure: existing.structure,
+  });
+  revalidatePath("/", "layout");
+}
+
+// Compact create used by the calendar's quick-add dialog. Takes a plain
+// object (same convention as sendMessage) and reports errors back instead of
+// redirecting, so the dialog can stay open on validation failure.
+const quickWorkoutInput = z.object({
+  athleteId: z.uuid(),
+  sport: z.enum(sportEnum.enumValues),
+  title: z.string().trim().min(1, "Title is required").max(200),
+  date: isoDate,
+  plannedDurationMin: optionalNumber(z.number().positive().max(24 * 60)),
+  plannedDistanceKm: optionalNumber(z.number().positive().max(1000)),
+  description: z.string().trim().max(5000).optional(),
+});
+
+export type QuickWorkoutInput = z.input<typeof quickWorkoutInput>;
+
+export async function quickCreateWorkout(
+  input: QuickWorkoutInput,
+): Promise<{ error?: string }> {
+  const parsed = quickWorkoutInput.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const actingUser = await authorizeAthleteAccess(parsed.data.athleteId);
+
+  await db.insert(workouts).values({
+    athleteId: parsed.data.athleteId,
+    createdById: actingUser.id,
+    sport: parsed.data.sport,
+    status: "planned",
+    source: "manual",
+    title: parsed.data.title,
+    date: parsed.data.date,
+    description: parsed.data.description || null,
+    plannedDurationSec: parsed.data.plannedDurationMin
+      ? Math.round(parsed.data.plannedDurationMin * 60)
+      : null,
+    plannedDistanceM: parsed.data.plannedDistanceKm
+      ? Math.round(parsed.data.plannedDistanceKm * 1000)
+      : null,
+  });
+
+  revalidatePath("/", "layout");
+  return {};
+}
+
 export async function completeWorkout(workoutId: string) {
   const id = z.uuid().parse(workoutId);
   const existing = await getWorkoutById(id);
