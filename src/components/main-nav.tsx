@@ -35,7 +35,7 @@ export function MainNav({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex items-center gap-1 text-sm">
+    <nav className="flex min-w-0 items-center gap-0.5 overflow-x-auto text-sm [scrollbar-width:none] sm:gap-1 [&::-webkit-scrollbar]:hidden">
       {items.map((item) => {
         const Icon = ICONS[item.icon];
         const active =
@@ -48,7 +48,7 @@ export function MainNav({ items }: { items: NavItem[] }) {
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 font-medium transition-colors",
+              "flex shrink-0 items-center gap-1.5 rounded-md px-1 py-1.5 font-medium transition-colors min-[420px]:px-2 sm:px-2.5",
               active
                 ? "bg-muted text-foreground"
                 : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",

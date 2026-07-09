@@ -32,14 +32,17 @@ export function AppHeader({
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-lg font-bold tracking-tight">
-            betri<span className="text-primary">.companion</span>
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 px-3 sm:gap-4 sm:px-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+          <Link href="/" className="shrink-0 text-lg font-bold tracking-tight">
+            betri
+            <span className="hidden text-primary min-[480px]:inline">
+              .companion
+            </span>
           </Link>
           <MainNav items={navItems} />
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <ThemeToggle />
           {actingUser ? (
             <UserSwitcher users={users} actingUser={actingUser} />

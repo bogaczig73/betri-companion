@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  AlertCircle,
   CalendarCheck,
   CalendarClock,
   ChevronRight,
@@ -26,8 +27,14 @@ import {
   getWorkoutsForAthlete,
 } from "@/lib/access";
 import { getActingUser } from "@/lib/acting-user";
-import { formatDuration } from "@/lib/format";
-import { thisWeekSeconds } from "@/lib/stats";
+import { formatDate, formatDuration } from "@/lib/format";
+import {
+  isoDate,
+  missedWorkouts,
+  thisWeekSeconds,
+  weekSummary,
+} from "@/lib/stats";
+import { SportBadge } from "@/components/sport-badge";
 
 function initials(name: string) {
   return name
@@ -68,50 +75,177 @@ function StatTile({
 
 async function CoachDashboard({ coachId }: { coachId: string }) {
   const athletes = await getAthletesForCoach(coachId);
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Your athletes</CardTitle>
-        <CardDescription>
-          Open an athlete to manage their workouts.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {athletes.length === 0 ? (
+
+  if (athletes.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Your athletes</CardTitle>
+          <CardDescription>
+            Open an athlete to manage their workouts.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           <EmptyState
             icon={Users}
             title="No athletes linked yet"
             description="Athletes appear here once they are linked to you as their coach."
           />
-        ) : (
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const workoutsPerAthlete = await Promise.all(
+    athletes.map((athlete) => getWorkoutsForAthlete(athlete.id)),
+  );
+  const today = isoDate(new Date());
+  const rows = athletes.map((athlete, i) => ({
+    athlete,
+    week: weekSummary(workoutsPerAthlete[i]),
+    missed: missedWorkouts(workoutsPerAthlete[i], today),
+  }));
+
+  const weekDoneSec = rows.reduce((sum, r) => sum + r.week.doneSec, 0);
+  const weekPlannedSec = rows.reduce((sum, r) => sum + r.week.plannedSec, 0);
+  const weekCompleted = rows.reduce((sum, r) => sum + r.week.completedCount, 0);
+  const weekCount = rows.reduce((sum, r) => sum + r.week.count, 0);
+  const allMissed = rows
+    .flatMap((r) =>
+      r.missed.map((workout) => ({ workout, athlete: r.athlete })),
+    )
+    .sort((a, b) => (a.workout.date < b.workout.date ? 1 : -1));
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatTile
+          label="Athletes"
+          value={String(athletes.length)}
+          icon={Users}
+        />
+        <StatTile
+          label="Sessions this week"
+          value={`${weekCompleted}/${weekCount}`}
+          icon={CalendarCheck}
+        />
+        <StatTile
+          label="Hours this week"
+          value={`${formatDuration(weekDoneSec)} / ${formatDuration(weekPlannedSec)}`}
+          icon={Timer}
+        />
+      </div>
+
+      {allMissed.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="size-4 text-destructive" />
+              Needs attention
+            </CardTitle>
+            <CardDescription>
+              {allMissed.length} planned{" "}
+              {allMissed.length === 1 ? "session" : "sessions"} past their date
+              without a result.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {allMissed.slice(0, 6).map(({ workout, athlete }) => (
+                <li key={workout.id}>
+                  <Link
+                    href={`/workouts/${workout.id}`}
+                    className="flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors hover:bg-accent"
+                  >
+                    <SportBadge sport={workout.sport} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {workout.title}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {athlete.name} · {formatDate(workout.date)}
+                      </p>
+                    </div>
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Your athletes</CardTitle>
+          <CardDescription>
+            This week&apos;s progress per athlete — open one to manage their
+            workouts.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           <ul className="grid gap-3 sm:grid-cols-2">
-            {athletes.map((athlete) => (
-              <li key={athlete.id}>
-                <Link
-                  href={`/athletes/${athlete.id}`}
-                  className="flex items-center gap-3 rounded-lg border px-3 py-3 transition-colors hover:bg-accent"
-                >
-                  <Avatar>
-                    <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">
-                      {initials(athlete.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
-                      {athlete.name}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {athlete.email} · {athlete.timezone}
-                    </p>
-                  </div>
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                </Link>
-              </li>
-            ))}
+            {rows.map(({ athlete, week, missed }) => {
+              const pct =
+                week.plannedSec > 0
+                  ? Math.min(
+                      100,
+                      Math.round((week.doneSec / week.plannedSec) * 100),
+                    )
+                  : 0;
+              return (
+                <li key={athlete.id}>
+                  <Link
+                    href={`/athletes/${athlete.id}`}
+                    className="flex flex-col gap-3 rounded-lg border px-3 py-3 transition-colors hover:bg-accent"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">
+                          {initials(athlete.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {athlete.name}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {athlete.email} · {athlete.timezone}
+                        </p>
+                      </div>
+                      {missed.length > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+                          <AlertCircle className="size-3" />
+                          {missed.length}
+                        </span>
+                      )}
+                      <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>
+                          {week.completedCount}/{week.count} sessions this week
+                        </span>
+                        <span className="tabular-nums">
+                          {formatDuration(week.doneSec)} /{" "}
+                          {formatDuration(week.plannedSec)}
+                        </span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-(--success)"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
-        )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
