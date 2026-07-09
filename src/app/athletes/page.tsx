@@ -43,7 +43,7 @@ export default async function AthletesPage() {
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2">
               {athletes.map((athlete) => (
-                <li key={athlete.id}>
+                <li key={athlete.id} className="min-w-0">
                   <Link
                     href={`/athletes/${athlete.id}`}
                     className="flex items-center gap-3 rounded-lg border px-3 py-3 transition-colors hover:bg-accent"

@@ -59,7 +59,7 @@ export default async function LactatePage() {
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2">
               {tests.map((t) => (
-                <li key={t.id}>
+                <li key={t.id} className="min-w-0">
                   <Link
                     href={`/lactate/${t.id}`}
                     className="flex items-center justify-between gap-3 rounded-lg border px-3 py-3 transition-colors hover:bg-accent"

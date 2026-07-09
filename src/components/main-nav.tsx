@@ -15,7 +15,7 @@ import {
 
 import { cn } from "@/lib/utils";
 
-const ICONS: Record<string, LucideIcon> = {
+export const NAV_ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,
   athletes: Users,
   plans: ClipboardList,
@@ -28,34 +28,37 @@ const ICONS: Record<string, LucideIcon> = {
 export type NavItem = {
   href: string;
   label: string;
-  icon: keyof typeof ICONS;
+  icon: keyof typeof NAV_ICONS;
 };
+
+export function isNavItemActive(pathname: string, href: string) {
+  return href === "/"
+    ? pathname === "/"
+    : pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function MainNav({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex min-w-0 items-center gap-0.5 overflow-x-auto text-sm [scrollbar-width:none] sm:gap-1 [&::-webkit-scrollbar]:hidden">
+    <nav className="hidden items-center gap-1 text-sm md:flex">
       {items.map((item) => {
-        const Icon = ICONS[item.icon];
-        const active =
-          item.href === "/"
-            ? pathname === "/"
-            : pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const Icon = NAV_ICONS[item.icon];
+        const active = isNavItemActive(pathname, item.href);
         return (
           <Link
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex shrink-0 items-center gap-1.5 rounded-md px-1 py-1.5 font-medium transition-colors min-[420px]:px-2 sm:px-2.5",
+              "flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 font-medium transition-colors",
               active
                 ? "bg-muted text-foreground"
                 : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
             )}
           >
             <Icon className="size-4" />
-            <span className="hidden md:inline">{item.label}</span>
+            <span>{item.label}</span>
           </Link>
         );
       })}

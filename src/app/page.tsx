@@ -194,7 +194,7 @@ async function CoachDashboard({ coachId }: { coachId: string }) {
                     )
                   : 0;
               return (
-                <li key={athlete.id}>
+                <li key={athlete.id} className="min-w-0">
                   <Link
                     href={`/athletes/${athlete.id}`}
                     className="flex flex-col gap-3 rounded-lg border px-3 py-3 transition-colors hover:bg-accent"
