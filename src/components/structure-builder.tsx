@@ -21,10 +21,10 @@ import { formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const KIND_COLORS: Record<StructureStep["kind"], string> = {
-  warmup: "bg-amber-400 dark:bg-amber-500",
-  active: "bg-rose-500 dark:bg-rose-600",
-  recovery: "bg-emerald-400 dark:bg-emerald-500",
-  cooldown: "bg-sky-400 dark:bg-sky-500",
+  warmup: "bg-(--chart-3)",
+  active: "bg-(--chart-4)",
+  recovery: "bg-(--chart-2)",
+  cooldown: "bg-(--chart-5)",
   rest: "bg-muted-foreground/30",
 };
 

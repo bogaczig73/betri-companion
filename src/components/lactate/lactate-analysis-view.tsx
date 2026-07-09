@@ -17,8 +17,8 @@ import {
 
 import { LactateChart, type ChartMarker } from "./lactate-chart";
 
-const LT1_COLOR = "#2563eb"; // blue — aerobic
-const LT2_COLOR = "#ea580c"; // orange — anaerobic
+const LT1_COLOR = "var(--chart-2)"; // teal — aerobic
+const LT2_COLOR = "var(--chart-4)"; // red-orange — anaerobic
 
 // Matched LT1/LT2 method pairs for the "Method set" quick selector.
 const PAIRS = [

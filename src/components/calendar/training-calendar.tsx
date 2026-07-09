@@ -81,13 +81,13 @@ function WorkoutChip({ workout, today }: { workout: Workout; today: string }) {
         </span>
         {workout.status === "completed" && (
           <Check
-            className="size-3 shrink-0 text-emerald-600 dark:text-emerald-400"
+            className="size-3 shrink-0 text-(--success)"
             aria-label="Completed"
           />
         )}
         {missed && (
           <AlertCircle
-            className="size-3 shrink-0 text-red-600 dark:text-red-400"
+            className="size-3 shrink-0 text-destructive"
             aria-label="Missed"
           />
         )}
@@ -139,7 +139,7 @@ function WeekSummary({ workouts }: { workouts: Workout[] }) {
       </p>
       <div className="h-1 overflow-hidden rounded-full bg-muted">
         <div
-          className="h-full rounded-full bg-emerald-500"
+          className="h-full rounded-full bg-(--success)"
           style={{ width: `${pct}%` }}
         />
       </div>
