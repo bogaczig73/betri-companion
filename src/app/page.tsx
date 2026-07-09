@@ -264,7 +264,7 @@ async function AthleteDashboard({ athleteId }: { athleteId: string }) {
         <p className="text-sm text-muted-foreground">
           Coach: {coaches.map((c) => c.name).join(", ") || "none"}
         </p>
-        <div className="flex items-start gap-2">
+        <div className="flex flex-wrap items-start gap-2">
           <FitUploadButton athleteId={athleteId} />
           <Button nativeButton={false} render={<Link href="/workouts/new" />}>
             Log workout

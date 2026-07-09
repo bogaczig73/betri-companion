@@ -59,7 +59,7 @@ export default async function AthleteDetailPage({
             </p>
           </div>
         </div>
-        <div className="flex items-start gap-2">
+        <div className="flex flex-wrap items-start gap-2">
           <Button
             variant="outline"
             nativeButton={false}

@@ -54,7 +54,7 @@ export default async function LactateTestPage({
               ← All tests
             </Link>
           </p>
-          <div className="mt-1 flex items-center gap-2">
+          <div className="mt-1 flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">
               {test.title || `${athlete.name} · lactate test`}
             </h1>
