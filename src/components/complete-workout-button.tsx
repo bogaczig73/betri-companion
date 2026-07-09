@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { useTransition } from "react";
 
 import { completeWorkout } from "@/app/actions/workouts";
@@ -18,7 +18,11 @@ export function CompleteWorkoutButton({ workoutId }: { workoutId: string }) {
       disabled={pending}
       onClick={() => startTransition(() => completeWorkout(workoutId))}
     >
-      <Check className="size-4" />
+      {pending ? (
+        <Loader2 className="size-4 animate-spin" />
+      ) : (
+        <Check className="size-4" />
+      )}
       {pending ? "Saving…" : "Done"}
     </Button>
   );

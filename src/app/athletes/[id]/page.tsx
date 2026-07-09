@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { FitUploadButton } from "@/components/fit-upload-button";
 import { WorkoutList } from "@/components/workout-list";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -38,13 +39,25 @@ export default async function AthleteDetailPage({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {athlete.name}
-          </h1>
-          <p className="text-muted-foreground">
-            {athlete.email} · {athlete.timezone}
-          </p>
+        <div className="flex items-center gap-3">
+          <Avatar size="lg">
+            <AvatarFallback className="bg-primary/10 text-sm font-medium text-primary">
+              {athlete.name
+                .split(" ")
+                .map((part) => part[0])
+                .slice(0, 2)
+                .join("")
+                .toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {athlete.name}
+            </h1>
+            <p className="text-muted-foreground">
+              {athlete.email} · {athlete.timezone}
+            </p>
+          </div>
         </div>
         <div className="flex items-start gap-2">
           <Button

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { FlaskConical } from "lucide-react";
 
+import { EmptyState } from "@/components/empty-state";
 import { SportBadge } from "@/components/sport-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,16 +51,18 @@ export default async function LactatePage() {
         </CardHeader>
         <CardContent>
           {tests.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No lactate tests yet. Create one to start entering step data.
-            </p>
+            <EmptyState
+              icon={FlaskConical}
+              title="No lactate tests yet"
+              description="Create one to start entering step data."
+            />
           ) : (
-            <ul className="space-y-2">
+            <ul className="grid gap-3 sm:grid-cols-2">
               {tests.map((t) => (
                 <li key={t.id}>
                   <Link
                     href={`/lactate/${t.id}`}
-                    className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 transition-colors hover:bg-accent"
+                    className="flex items-center justify-between gap-3 rounded-lg border px-3 py-3 transition-colors hover:bg-accent"
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">

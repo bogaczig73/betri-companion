@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ClipboardList } from "lucide-react";
 
 import { createPlan } from "@/app/actions/plans";
+import { EmptyState } from "@/components/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +21,14 @@ import { getPlansForCoach } from "@/lib/plans";
 
 function PlanLinkList({ plans }: { plans: TrainingPlan[] }) {
   if (plans.length === 0) {
-    return <p className="text-sm text-muted-foreground">None yet.</p>;
+    return (
+      <EmptyState
+        icon={ClipboardList}
+        title="None yet"
+        description="Create one with the form below."
+        className="py-8"
+      />
+    );
   }
   return (
     <ul className="space-y-2">

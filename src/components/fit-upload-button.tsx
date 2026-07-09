@@ -1,6 +1,6 @@
 "use client";
 
-import { Upload } from "lucide-react";
+import { Loader2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
@@ -65,7 +65,11 @@ export function FitUploadButton({ athleteId }: { athleteId: string }) {
         disabled={busy}
         onClick={() => inputRef.current?.click()}
       >
-        <Upload className="size-3.5" />
+        {busy ? (
+          <Loader2 className="size-3.5 animate-spin" />
+        ) : (
+          <Upload className="size-3.5" />
+        )}
         {busy ? "Importing…" : "Upload FIT"}
       </Button>
       {results.map((r, i) => (

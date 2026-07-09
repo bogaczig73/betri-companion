@@ -1,6 +1,7 @@
-import { FileText } from "lucide-react";
+import { BookOpen, FileText } from "lucide-react";
 import { redirect } from "next/navigation";
 
+import { EmptyState } from "@/components/empty-state";
 import { AskLibrary } from "@/components/papers/ask-library";
 import { PaperActions } from "@/components/papers/paper-actions";
 import { PaperUploadButton } from "@/components/papers/paper-upload-button";
@@ -20,8 +21,11 @@ import type { PaperStatus } from "@/db/schema";
 export const dynamic = "force-dynamic";
 
 const statusBadge: Record<PaperStatus, { label: string; className: string }> = {
-  ready: { label: "ready", className: "" },
-  processing: { label: "processing", className: "" },
+  ready: { label: "ready", className: "text-(--success) border-(--success)/40" },
+  processing: {
+    label: "processing",
+    className: "text-(--warning) border-(--warning)/40",
+  },
   failed: { label: "failed", className: "text-destructive border-destructive/50" },
 };
 
@@ -90,12 +94,15 @@ export default async function PapersPage() {
         </CardHeader>
         <CardContent>
           {papers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No papers yet.{" "}
-              {isCoach
-                ? "Upload a training-science PDF to build the knowledge base."
-                : "Your coach hasn't added any papers yet."}
-            </p>
+            <EmptyState
+              icon={BookOpen}
+              title="No papers yet"
+              description={
+                isCoach
+                  ? "Upload a training-science PDF to build the knowledge base."
+                  : "Your coach hasn't added any papers yet."
+              }
+            />
           ) : (
             <ul className="space-y-2">
               {papers.map((p) => (
