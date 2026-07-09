@@ -9,6 +9,13 @@ import {
   FILES_API_BETA,
   getAnthropic,
 } from "@/lib/ai";
+import type {
+  AnswerBlock,
+  LibraryAnswer,
+  LibraryCitation,
+} from "@/lib/citations";
+
+export type { AnswerBlock, LibraryAnswer, LibraryCitation };
 
 // ---------------------------------------------------------------------------
 // Retrieval interface
@@ -120,23 +127,8 @@ async function selectPapers(
 }
 
 // ---------------------------------------------------------------------------
-// Grounded Q&A with native citations
+// Grounded answering with native citations
 // ---------------------------------------------------------------------------
-
-export type LibraryCitation = {
-  paperId: string;
-  paperTitle: string;
-  startPage: number;
-  endPage: number;
-  citedText: string;
-};
-
-export type AnswerBlock = { text: string; citations: LibraryCitation[] };
-
-export type LibraryAnswer = {
-  blocks: AnswerBlock[];
-  papers: { id: string; title: string; authors: string | null; year: number | null }[];
-};
 
 const QA_SYSTEM = `You are a sports-science assistant inside a triathlon coaching app. Coaches ask questions and you answer grounded in the attached research papers.
 
@@ -147,15 +139,24 @@ Rules:
 - Keep answers practical for a coach: concise paragraphs, concrete numbers from the papers where available.
 - Format with simple Markdown only: short paragraphs, "- " bullet lists, numbered lists, **bold** and \`inline code\`. No tables, no headings, no nested lists, no links.`;
 
-export async function answerFromLibrary(
-  question: string,
-): Promise<LibraryAnswer> {
+// Core grounded call: triage the catalog with retrievalQuery, attach the
+// selected PDFs, answer `prompt` under `system` with citations enabled.
+// Q&A and workout/test analysis both route through here.
+export async function answerGrounded({
+  retrievalQuery,
+  system,
+  prompt,
+}: {
+  retrievalQuery: string;
+  system: string;
+  prompt: string;
+}): Promise<LibraryAnswer> {
   const catalog = await getPaperCatalog();
   if (catalog.length === 0) {
     throw new Error("No processed papers in the library yet");
   }
 
-  const selected = await selectPapers(question, catalog);
+  const selected = await selectPapers(retrievalQuery, catalog);
   const client = getAnthropic();
 
   const documents: Anthropic.Beta.BetaContentBlockParam[] = selected.map(
@@ -179,11 +180,11 @@ export async function answerFromLibrary(
     model: AI_MODEL,
     max_tokens: 8192,
     betas: [FILES_API_BETA],
-    system: QA_SYSTEM,
+    system,
     messages: [
       {
         role: "user",
-        content: [...documents, { type: "text", text: question }],
+        content: [...documents, { type: "text", text: prompt }],
       },
     ],
   });
@@ -216,4 +217,14 @@ export async function answerFromLibrary(
       year: p.year,
     })),
   };
+}
+
+export async function answerFromLibrary(
+  question: string,
+): Promise<LibraryAnswer> {
+  return answerGrounded({
+    retrievalQuery: question,
+    system: QA_SYSTEM,
+    prompt: question,
+  });
 }

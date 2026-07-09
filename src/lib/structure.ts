@@ -118,6 +118,31 @@ export function stepIntensityPct(step: StructureStep): number {
   return Math.max(5, Math.min(pct, 130) / 1.3);
 }
 
+function describeStepDuration(step: StructureStep): string {
+  if (step.duration.unit === "m") return `${step.duration.value} m`;
+  const sec = step.duration.value;
+  const m = Math.floor(sec / 60);
+  const s = Math.round(sec % 60);
+  if (m === 0) return `${s}s`;
+  return s === 0 ? `${m}min` : `${m}min ${s}s`;
+}
+
+// Plain-text rendering of a structure, one block per line — used to describe
+// the prescription to the AI analysis prompts.
+export function describeStructure(structure: WorkoutStructure): string {
+  const stepLine = (step: StructureStep): string => {
+    const target = describeTarget(step);
+    return `${step.kind}${step.name ? ` "${step.name}"` : ""} ${describeStepDuration(step)}${target ? ` @ ${target}` : ""}`;
+  };
+  return structure.blocks
+    .map((block) =>
+      block.type === "step"
+        ? `- ${stepLine(block)}`
+        : `- ${block.count}× [ ${block.steps.map(stepLine).join(" ; ")} ]`,
+    )
+    .join("\n");
+}
+
 export function describeTarget(step: StructureStep): string | null {
   if (!step.target) return null;
   const { metric, min, max } = step.target;

@@ -68,6 +68,23 @@ Requires `ANTHROPIC_API_KEY` and `BLOB_READ_WRITE_TOKEN`; the `/papers` page
 shows a setup banner listing whichever is missing, and failed papers can be
 reprocessed from the UI after fixing the env.
 
+## AI analysis (Phase 7)
+
+Workout and lactate-test detail pages have an **AI analysis** card: one click
+serializes the subject (prescription + structure + actuals, lactate steps +
+the engine's per-method threshold estimates, plus the athlete's last 3 weeks
+of training and most recent LT1/LT2 consensus) and answers through the same
+grounded pipeline as "Ask the library" (`answerGrounded` in
+`src/lib/paper-qa.ts`). Every run is stored as an `analysis_results` row
+(content snapshotted as JSONB, so it renders even if a paper is later
+deleted); re-running appends, deleting is soft.
+
+Claims carry page-level `[n]` citations; the prompt confines uncited
+interpretation to a closing "**Beyond the papers:**" paragraph, and the UI
+labels that split explicitly. Logic lives in `src/lib/analysis.ts`, the route
+is `POST /api/analysis`, the panel is
+`src/components/analysis/analysis-panel.tsx`.
+
 ## Testing without auth
 
 There is no auth yet (testing phase). The header has an **"Acting as"
@@ -84,7 +101,7 @@ so swapping in a real session later is a drop-in.
 - [x] Phase 4 — chat with workout mentions
 - [x] Phase 5 — lactate testing module (LT1/LT2 across methods; engine validated vs lactater)
 - [x] Phase 6 — science paper library (Blob + Anthropic Files API + native citations; pgvector deferred)
-- [ ] Phase 7 — AI workout analysis (grounded)
+- [x] Phase 7 — AI workout analysis (grounded in the paper library, stored with citations)
 - [ ] Phase 8 — Strava + Garmin + Apple Health export
 - [ ] Phase 9 — AI training-plan evaluator
 

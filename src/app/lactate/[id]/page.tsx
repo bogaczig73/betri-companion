@@ -2,11 +2,24 @@ import { StickyNote } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import { AnalysisPanel } from "@/components/analysis/analysis-panel";
 import { DeleteTestButton } from "@/components/lactate/delete-test-button";
 import { LactateTestDetail } from "@/components/lactate/lactate-test-detail";
 import { SportBadge } from "@/components/sport-badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { canAccessAthlete } from "@/lib/access";
 import { getActingUser } from "@/lib/acting-user";
+import {
+  getAnalysesForTest,
+  getAnalysisDisabledReason,
+  toAnalysisView,
+} from "@/lib/analysis";
 import { formatDate } from "@/lib/format";
 import { isLactateSport } from "@/lib/lactate";
 import { getTestDetail, testBaseline, testSport } from "@/lib/lactate-data";
@@ -27,6 +40,10 @@ export default async function LactateTestPage({
   if (!isLactateSport(detail.test.sport)) notFound();
 
   const { test, athlete, steps } = detail;
+  const [analyses, analysisDisabledReason] = await Promise.all([
+    getAnalysesForTest(test.id),
+    getAnalysisDisabledReason(),
+  ]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -74,6 +91,23 @@ export default async function LactateTestPage({
         steps={steps}
         baseline={testBaseline(test)}
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>AI analysis</CardTitle>
+          <CardDescription>
+            Grounded in the science paper library: every [n] cites a paper
+            passage; uncited interpretation is marked as model inference.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AnalysisPanel
+            subject={{ lactateTestId: test.id }}
+            initialAnalyses={analyses.map(toAnalysisView)}
+            disabledReason={analysisDisabledReason}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

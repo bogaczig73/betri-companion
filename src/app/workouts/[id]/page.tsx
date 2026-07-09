@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import { AnalysisPanel } from "@/components/analysis/analysis-panel";
 import { CompleteWorkoutButton } from "@/components/complete-workout-button";
 import { AddLactateButton } from "@/components/lactate/add-lactate-button";
 import { LactateTestDetail } from "@/components/lactate/lactate-test-detail";
@@ -20,6 +21,11 @@ import {
   getWorkoutById,
 } from "@/lib/access";
 import { getActingUser } from "@/lib/acting-user";
+import {
+  getAnalysesForWorkout,
+  getAnalysisDisabledReason,
+  toAnalysisView,
+} from "@/lib/analysis";
 import { isLactateSport } from "@/lib/lactate";
 import { getTestForWorkout, testBaseline, testSport } from "@/lib/lactate-data";
 
@@ -36,12 +42,15 @@ export default async function WorkoutDetailPage({
   if (!workout) notFound();
   if (!(await canAccessAthlete(actingUser, workout.athleteId))) redirect("/");
 
-  const [athlete, lactate] = await Promise.all([
-    getUserById(workout.athleteId),
-    isLactateSport(workout.sport)
-      ? getTestForWorkout(workout.id)
-      : Promise.resolve(null),
-  ]);
+  const [athlete, lactate, analyses, analysisDisabledReason] =
+    await Promise.all([
+      getUserById(workout.athleteId),
+      isLactateSport(workout.sport)
+        ? getTestForWorkout(workout.id)
+        : Promise.resolve(null),
+      getAnalysesForWorkout(workout.id),
+      getAnalysisDisabledReason(),
+    ]);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -104,6 +113,23 @@ export default async function WorkoutDetailPage({
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>AI analysis</CardTitle>
+          <CardDescription>
+            Grounded in the science paper library: every [n] cites a paper
+            passage; uncited interpretation is marked as model inference.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AnalysisPanel
+            subject={{ workoutId: workout.id }}
+            initialAnalyses={analyses.map(toAnalysisView)}
+            disabledReason={analysisDisabledReason}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

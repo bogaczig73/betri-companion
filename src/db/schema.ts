@@ -13,6 +13,7 @@ import {
   vector,
 } from "drizzle-orm/pg-core";
 
+import type { LibraryAnswer } from "@/lib/citations";
 import type { WorkoutStructure } from "@/lib/structure";
 
 // ---------------------------------------------------------------------------
@@ -443,6 +444,44 @@ export const paperChunks = pgTable(
   ],
 );
 
+// ---------------------------------------------------------------------------
+// AI analysis results (Phase 7)
+// ---------------------------------------------------------------------------
+
+export const analysisSubjectEnum = pgEnum("analysis_subject", [
+  "workout",
+  "lactate_test",
+]);
+
+// One stored grounded-analysis run over a workout or a lactate test. The
+// content is the full answer (text blocks + page-level citations + the papers
+// consulted) snapshotted as JSONB, so past analyses keep rendering even if a
+// cited paper is later removed from the library. Re-running adds a new row;
+// nothing is recomputed in place.
+export const analysisResults = pgTable(
+  "analysis_results",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    subjectType: analysisSubjectEnum("subject_type").notNull(),
+    // Exactly one of these is set, matching subjectType.
+    workoutId: uuid("workout_id").references(() => workouts.id),
+    lactateTestId: uuid("lactate_test_id").references(() => lactateTests.id),
+    // Denormalized from the subject so access checks and per-athlete listings
+    // don't need a join.
+    athleteId: uuid("athlete_id")
+      .notNull()
+      .references(() => users.id),
+    requestedById: uuid("requested_by_id").references(() => users.id),
+    model: text("model").notNull(),
+    content: jsonb("content").$type<LibraryAnswer>().notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    index("analysis_results_workout_idx").on(t.workoutId),
+    index("analysis_results_test_idx").on(t.lactateTestId),
+  ],
+);
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type CoachAthlete = typeof coachAthletes.$inferSelect;
@@ -467,3 +506,5 @@ export type LactateStep = typeof lactateSteps.$inferSelect;
 export type SciencePaper = typeof sciencePapers.$inferSelect;
 export type PaperStatus = (typeof paperStatusEnum.enumValues)[number];
 export type PaperChunk = typeof paperChunks.$inferSelect;
+export type AnalysisResult = typeof analysisResults.$inferSelect;
+export type AnalysisSubject = (typeof analysisSubjectEnum.enumValues)[number];
