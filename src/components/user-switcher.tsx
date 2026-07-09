@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { Check, ChevronsUpDown } from "lucide-react";
 
 import { setActingUser } from "@/app/actions/acting-user";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -41,33 +42,34 @@ export function UserSwitcher({
         render={
           <Button variant="ghost" className="gap-2 px-2" disabled={isPending}>
             <Avatar className="size-7">
-              <AvatarFallback className="text-xs">
+              <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">
                 {initials(actingUser.name)}
               </AvatarFallback>
             </Avatar>
             <span className="hidden sm:inline">{actingUser.name}</span>
-            <Badge
-              variant={actingUser.role === "coach" ? "default" : "secondary"}
-            >
-              {actingUser.role}
-            </Badge>
+            <ChevronsUpDown className="size-3.5 text-muted-foreground" />
           </Button>
         }
       />
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Acting as (testing)</DropdownMenuLabel>
+          <DropdownMenuLabel>Switch user</DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         {users.map((user) => (
           <DropdownMenuItem
             key={user.id}
             onClick={() => startTransition(() => setActingUser(user.id))}
-            className="justify-between"
+            className="gap-2"
           >
-            <span className={user.id === actingUser.id ? "font-semibold" : ""}>
-              {user.name}
-            </span>
+            <Check
+              className={
+                user.id === actingUser.id
+                  ? "size-4 text-primary"
+                  : "size-4 opacity-0"
+              }
+            />
+            <span className="flex-1">{user.name}</span>
             <Badge variant={user.role === "coach" ? "default" : "secondary"}>
               {user.role}
             </Badge>
