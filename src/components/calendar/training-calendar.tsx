@@ -68,7 +68,7 @@ function WorkoutChip({ workout, today }: { workout: Workout; today: string }) {
         e.dataTransfer.effectAllowed = "copyMove";
       }}
       className={cn(
-        "block cursor-grab rounded-md px-1.5 py-1 text-xs leading-tight transition-opacity hover:opacity-80 active:cursor-grabbing",
+        "block cursor-grab rounded-md border border-black/5 px-1.5 py-1 text-xs leading-tight transition-opacity hover:opacity-80 active:cursor-grabbing dark:border-white/10",
         className,
         missed && "opacity-60",
       )}
@@ -389,7 +389,7 @@ export function TrainingCalendar({
     <div className="space-y-2">
       <div className="overflow-x-auto rounded-lg border">
         <div className="min-w-[880px]">
-          <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_7.5rem] border-b bg-muted/40 text-xs font-medium text-muted-foreground">
+          <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_7.5rem] border-b bg-muted/40 text-xs font-medium tracking-wide text-muted-foreground uppercase">
             {DAY_LABELS.map((label) => (
               <div key={label} className="px-2 py-1.5">
                 {label}
@@ -424,6 +424,7 @@ export function TrainingCalendar({
                       className={cn(
                         "group min-h-28 space-y-1 border-r p-1.5 transition-colors last:border-r-0",
                         !inMonth && "bg-muted/30",
+                        isToday && "bg-primary/[0.04] ring-1 ring-primary/30 ring-inset",
                         dragOverDate === day && "bg-accent",
                       )}
                     >

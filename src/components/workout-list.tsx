@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Dumbbell } from "lucide-react";
 
 import { CompleteWorkoutButton } from "@/components/complete-workout-button";
+import { EmptyState } from "@/components/empty-state";
 import { SportBadge } from "@/components/sport-badge";
 import { Badge } from "@/components/ui/badge";
 import type { Workout } from "@/db/schema";
@@ -27,7 +29,12 @@ export function metricsSummary(w: Workout): string {
 export function WorkoutList({ workouts }: { workouts: Workout[] }) {
   if (workouts.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">No workouts yet.</p>
+      <EmptyState
+        icon={Dumbbell}
+        title="No workouts yet"
+        description="Sessions show up here once they are planned or logged."
+        className="py-8"
+      />
     );
   }
   return (

@@ -1,8 +1,17 @@
 import Link from "next/link";
+import {
+  CalendarCheck,
+  CalendarClock,
+  ChevronRight,
+  Timer,
+  Users,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
+import { EmptyState } from "@/components/empty-state";
 import { FitUploadButton } from "@/components/fit-upload-button";
 import { WorkoutList } from "@/components/workout-list";
-import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,6 +26,45 @@ import {
   getWorkoutsForAthlete,
 } from "@/lib/access";
 import { getActingUser } from "@/lib/acting-user";
+import { formatDuration } from "@/lib/format";
+import { thisWeekSeconds } from "@/lib/stats";
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+function StatTile({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  icon: LucideIcon;
+}) {
+  return (
+    <Card className="gap-2 py-4">
+      <CardContent className="flex items-center justify-between px-4">
+        <div>
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            {label}
+          </p>
+          <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
+            {value}
+          </p>
+        </div>
+        <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10">
+          <Icon className="size-4.5 text-primary" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 async function CoachDashboard({ coachId }: { coachId: string }) {
   const athletes = await getAthletesForCoach(coachId);
@@ -30,22 +78,33 @@ async function CoachDashboard({ coachId }: { coachId: string }) {
       </CardHeader>
       <CardContent>
         {athletes.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nobody linked yet.</p>
+          <EmptyState
+            icon={Users}
+            title="No athletes linked yet"
+            description="Athletes appear here once they are linked to you as their coach."
+          />
         ) : (
-          <ul className="space-y-2">
+          <ul className="grid gap-3 sm:grid-cols-2">
             {athletes.map((athlete) => (
               <li key={athlete.id}>
                 <Link
                   href={`/athletes/${athlete.id}`}
-                  className="flex items-center justify-between rounded-md border px-3 py-2 transition-colors hover:bg-accent"
+                  className="flex items-center gap-3 rounded-lg border px-3 py-3 transition-colors hover:bg-accent"
                 >
-                  <div>
-                    <p className="text-sm font-medium">{athlete.name}</p>
-                    <p className="text-xs text-muted-foreground">
+                  <Avatar>
+                    <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">
+                      {initials(athlete.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {athlete.name}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
                       {athlete.email} · {athlete.timezone}
                     </p>
                   </div>
-                  <Badge variant="secondary">athlete</Badge>
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
                 </Link>
               </li>
             ))}
@@ -63,6 +122,7 @@ async function AthleteDashboard({ athleteId }: { athleteId: string }) {
   ]);
   const planned = workouts.filter((w) => w.status === "planned");
   const completed = workouts.filter((w) => w.status === "completed");
+  const weekSec = thisWeekSeconds(workouts);
 
   return (
     <div className="space-y-6">
@@ -76,6 +136,23 @@ async function AthleteDashboard({ athleteId }: { athleteId: string }) {
             Log workout
           </Button>
         </div>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatTile
+          label="Planned"
+          value={String(planned.length)}
+          icon={CalendarClock}
+        />
+        <StatTile
+          label="Completed"
+          value={String(completed.length)}
+          icon={CalendarCheck}
+        />
+        <StatTile
+          label="This week"
+          value={weekSec > 0 ? formatDuration(weekSec) : "0min"}
+          icon={Timer}
+        />
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

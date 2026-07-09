@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { MessageCircle } from "lucide-react";
 
 import { ChatAutoRefresh } from "@/components/chat/chat-auto-refresh";
 import { MessageComposer } from "@/components/chat/message-composer";
 import { ScrollAnchor } from "@/components/chat/scroll-anchor";
 import { WorkoutMentionCard } from "@/components/chat/workout-mention-card";
+import { EmptyState } from "@/components/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { getActingUser } from "@/lib/acting-user";
 import {
@@ -54,9 +56,11 @@ export default async function ChatThreadPage({
 
       <div className="space-y-4">
         {threadMessages.length === 0 ? (
-          <p className="rounded-md border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-            No messages yet — say hi, and type @ to reference a workout.
-          </p>
+          <EmptyState
+            icon={MessageCircle}
+            title="No messages yet"
+            description="Say hi, and type @ to reference a workout."
+          />
         ) : (
           threadMessages.map((m) => {
             const mine = m.senderId === actingUser.id;
@@ -70,10 +74,10 @@ export default async function ChatThreadPage({
               >
                 <div
                   className={cn(
-                    "max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap",
+                    "max-w-[85%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap",
                     mine
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted",
+                      ? "rounded-br-md bg-primary text-primary-foreground"
+                      : "rounded-bl-md bg-muted",
                   )}
                 >
                   {m.body}
@@ -95,11 +99,13 @@ export default async function ChatThreadPage({
         <ScrollAnchor />
       </div>
 
-      <div className="sticky bottom-0 border-t bg-background pt-4 pb-2">
-        <MessageComposer
-          threadId={thread.id}
-          mentionableWorkouts={mentionableWorkouts}
-        />
+      <div className="sticky bottom-0 bg-background pt-2 pb-2">
+        <div className="rounded-xl border bg-card p-3 shadow-sm">
+          <MessageComposer
+            threadId={thread.id}
+            mentionableWorkouts={mentionableWorkouts}
+          />
+        </div>
       </div>
     </div>
   );
