@@ -9,6 +9,7 @@ import {
   FlaskConical,
   LayoutDashboard,
   MessageCircle,
+  UserCog,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -23,6 +24,7 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   chat: MessageCircle,
   lactate: FlaskConical,
   library: BookOpen,
+  users: UserCog,
 };
 
 export type NavItem = {
@@ -50,6 +52,8 @@ export function MainNav({ items }: { items: NavItem[] }) {
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
+            aria-label={item.label}
+            title={item.label}
             className={cn(
               "flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 font-medium transition-colors",
               active
@@ -58,7 +62,8 @@ export function MainNav({ items }: { items: NavItem[] }) {
             )}
           >
             <Icon className="size-4" />
-            <span>{item.label}</span>
+            {/* Labels don't fit eight items until lg; icon-only below that. */}
+            <span className="hidden lg:inline">{item.label}</span>
           </Link>
         );
       })}

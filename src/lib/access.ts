@@ -68,6 +68,19 @@ export async function getCoachesForAthlete(athleteId: string): Promise<User[]> {
     );
 }
 
+// Every active coach–athlete link, for the user management page.
+export async function getAllCoachLinks(): Promise<
+  { coachId: string; athleteId: string }[]
+> {
+  return db
+    .select({
+      coachId: coachAthletes.coachId,
+      athleteId: coachAthletes.athleteId,
+    })
+    .from(coachAthletes)
+    .where(isNull(coachAthletes.deletedAt));
+}
+
 export async function getUserById(id: string): Promise<User | null> {
   const rows = await db
     .select()

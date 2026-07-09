@@ -29,6 +29,9 @@ export function AppHeader({
           { href: "/papers", label: "Library", icon: "library" },
         ] satisfies NavItem[])
       : []),
+    ...(actingUser?.role === "coach"
+      ? ([{ href: "/users", label: "Users", icon: "users" }] satisfies NavItem[])
+      : []),
   ];
 
   return (
