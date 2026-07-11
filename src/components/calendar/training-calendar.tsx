@@ -510,6 +510,7 @@ export function TrainingCalendar({
   const [loadingMore, setLoadingMore] = useState(false);
   const loadingRef = useRef(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -536,7 +537,7 @@ export function TrainingCalendar({
           setLoadingMore(false);
         }
       },
-      { rootMargin: "300px" },
+      { root: scrollRef.current, rootMargin: "300px" },
     );
     io.observe(el);
     return () => io.disconnect();
@@ -610,9 +611,13 @@ export function TrainingCalendar({
 
   return (
     <div className="space-y-2">
-      <div className="overflow-x-auto rounded-lg border">
+      {/* Fixed-height viewport: further months scroll inside, not the page. */}
+      <div
+        ref={scrollRef}
+        className="max-h-[calc(100dvh-13rem)] min-h-96 overflow-auto rounded-lg border"
+      >
         <div className="min-w-[880px]">
-          <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_7.5rem] border-b bg-muted/40 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <div className="sticky top-0 z-10 grid grid-cols-[repeat(7,minmax(0,1fr))_7.5rem] border-b bg-muted text-xs font-medium tracking-wide text-muted-foreground uppercase">
             {DAY_LABELS.map((label) => (
               <div key={label} className="px-2 py-1.5">
                 {label}
