@@ -5,20 +5,14 @@ import { MobileMenu } from "@/components/mobile-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserSwitcher } from "@/components/user-switcher";
 import type { User } from "@/db/schema";
-import { getAthletesForCoach } from "@/lib/access";
 
-export async function AppHeader({
+export function AppHeader({
   users,
   actingUser,
 }: {
   users: User[];
   actingUser: User | null;
 }) {
-  const athletes =
-    actingUser?.role === "coach"
-      ? await getAthletesForCoach(actingUser.id)
-      : [];
-
   const navItems: NavItem[] = [
     { href: "/", label: "Dashboard", icon: "dashboard" },
     ...(actingUser?.role === "coach"
@@ -28,15 +22,7 @@ export async function AppHeader({
             label: "Workouts",
             icon: "workouts",
             items: [
-              {
-                href: "/workouts/new",
-                label: "Add workout",
-                icon: "add",
-                sub: athletes.map((a) => ({
-                  href: `/workouts/new?athlete=${a.id}`,
-                  label: a.name,
-                })),
-              },
+              { href: "/workouts/new", label: "Add workout", icon: "add" },
               { href: "/plans", label: "Plans", icon: "plans" },
               { href: "/templates", label: "Templates", icon: "templates" },
             ],

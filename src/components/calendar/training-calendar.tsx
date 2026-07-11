@@ -34,6 +34,7 @@ import { formatDistance, formatDuration } from "@/lib/format";
 import { SPORTS } from "@/lib/sports";
 import { projectedZoneSeconds, type WorkoutTss } from "@/lib/tss";
 import { cn } from "@/lib/utils";
+import { ZONE_COLORS, ZONE_LABELS } from "@/lib/zones";
 
 export type RecentSession = {
   id: string;
@@ -213,6 +214,25 @@ function WeekSummary({
             size="sm"
             title={zoneTooltip(zoneSeconds)}
           />
+          <div className="space-y-px">
+            {zoneSeconds.map((sec, i) =>
+              sec > 0 ? (
+                <div
+                  key={i}
+                  className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
+                >
+                  <span
+                    className="size-1.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: ZONE_COLORS[i] }}
+                  />
+                  {ZONE_LABELS[i]}
+                  <span className="ml-auto tabular-nums">
+                    {formatDuration(sec)}
+                  </span>
+                </div>
+              ) : null,
+            )}
+          </div>
         </div>
       )}
     </div>
