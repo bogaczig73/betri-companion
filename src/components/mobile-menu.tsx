@@ -9,6 +9,7 @@ import { setActingUser } from "@/app/actions/acting-user";
 import {
   isNavItemActive,
   NAV_ICONS,
+  navLeaves,
   type NavItem,
 } from "@/components/main-nav";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -67,7 +68,8 @@ export function MobileMenu({
           />
           <div className="absolute inset-x-0 top-14 z-50 border-b bg-background shadow-lg">
             <nav className="flex flex-col gap-1 p-3 text-sm">
-              {items.map((item) => {
+              {/* Groups stay flat on mobile — vertical space is cheap. */}
+              {navLeaves(items).map((item) => {
                 const Icon = NAV_ICONS[item.icon];
                 const active = isNavItemActive(pathname, item.href);
                 return (

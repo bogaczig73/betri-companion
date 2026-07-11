@@ -16,14 +16,50 @@ import {
   type WorkoutStructure,
 } from "@/lib/structure";
 import {
+  HR_FRACTIONS,
+  PACE_SPEED_FRACTIONS,
+  pickThresholdsForDate,
+  POWER_FRACTIONS,
   thresholdPowerForSport,
   thresholdSpeedForSport,
+  ZONE_COUNT,
   type ThresholdValues,
   type TimeInZones,
 } from "@/lib/zones";
 
 /** Per-workout load pair, computed in RSC pages and passed to the calendar. */
 export type WorkoutTss = { planned?: number; actual?: number };
+
+/**
+ * Planned vs actual load per workout (actual = device TSS or estimate under
+ * the thresholds in force on the workout date).
+ */
+export function buildTssMap(
+  workouts: (ActualTssInput & {
+    id: string;
+    date: string;
+    status: string;
+    structure: WorkoutStructure | null;
+    plannedDurationSec: number | null;
+  })[],
+  thresholdHistory: (ThresholdValues & { effectiveDate: string })[],
+): Record<string, WorkoutTss> {
+  const map: Record<string, WorkoutTss> = {};
+  for (const w of workouts) {
+    const entry: WorkoutTss = {};
+    const planned = estimatePlannedTss(w.structure, w.plannedDurationSec);
+    if (planned != null) entry.planned = planned;
+    if (w.status === "completed") {
+      const actual = estimateActualTss(
+        w,
+        pickThresholdsForDate(thresholdHistory, w.date),
+      );
+      if (actual) entry.actual = actual.tss;
+    }
+    if (entry.planned != null || entry.actual != null) map[w.id] = entry;
+  }
+  return map;
+}
 
 export type TssEstimate = {
   tss: number;
@@ -76,6 +112,34 @@ export function estimatePlannedTss(
     tss += (stepDurationSec(step) / 3600) * stepIf(step) ** 2 * 100;
   }
   return Math.round(tss);
+}
+
+// Zone cut points as threshold fractions, per target metric. rpe maps via
+// stepIf (rpe×10 ≈ % threshold) and uses the power bands.
+const METRIC_FRACTIONS: Record<string, number[]> = {
+  "%ftp": POWER_FRACTIONS,
+  "%lthr": HR_FRACTIONS,
+  "%pace": PACE_SPEED_FRACTIONS,
+  rpe: POWER_FRACTIONS,
+};
+
+/**
+ * Projected seconds per zone (Z1–Z5) for a planned workout, from its
+ * structure's targets — no thresholds needed since targets are already
+ * threshold-relative.
+ */
+export function projectedZoneSeconds(structure: WorkoutStructure): number[] {
+  const seconds = new Array(ZONE_COUNT).fill(0);
+  for (const step of flattenSteps(structure)) {
+    const fraction = stepIf(step);
+    const cuts = step.target
+      ? METRIC_FRACTIONS[step.target.metric]
+      : POWER_FRACTIONS;
+    let zone = 0;
+    while (zone < cuts.length && fraction >= cuts[zone]) zone++;
+    seconds[zone] += stepDurationSec(step);
+  }
+  return seconds;
 }
 
 // ponytail: coarse TSS/hour per HR zone (Z1→Z5), the last-resort fallback;

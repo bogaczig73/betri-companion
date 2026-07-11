@@ -18,16 +18,28 @@ export function AppHeader({
     ...(actingUser?.role === "coach"
       ? ([
           { href: "/athletes", label: "Athletes", icon: "athletes" },
-          { href: "/plans", label: "Plans", icon: "plans" },
-          { href: "/templates", label: "Templates", icon: "templates" },
+          {
+            label: "Workouts",
+            icon: "workouts",
+            items: [
+              { href: "/plans", label: "Plans", icon: "plans" },
+              { href: "/templates", label: "Templates", icon: "templates" },
+            ],
+          },
         ] satisfies NavItem[])
       : []),
     ...(actingUser
       ? ([
           { href: "/calendar", label: "Calendar", icon: "calendar" },
           { href: "/chat", label: "Chat", icon: "chat" },
-          { href: "/lactate", label: "Lactate", icon: "lactate" },
-          { href: "/papers", label: "Library", icon: "library" },
+          {
+            label: "Lab",
+            icon: "lab",
+            items: [
+              { href: "/lactate", label: "Lactate", icon: "lactate" },
+              { href: "/papers", label: "Library", icon: "library" },
+            ],
+          },
         ] satisfies NavItem[])
       : []),
     ...(actingUser?.role === "coach"

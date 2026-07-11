@@ -77,9 +77,9 @@ export type ZoneSet = {
   cuts: number[];
 };
 
-const HR_FRACTIONS = [0.85, 0.9, 0.95, 1.0];
-const POWER_FRACTIONS = [0.55, 0.76, 0.91, 1.06];
-const PACE_SPEED_FRACTIONS = [0.75, 0.85, 0.93, 1.0];
+export const HR_FRACTIONS = [0.85, 0.9, 0.95, 1.0];
+export const POWER_FRACTIONS = [0.55, 0.76, 0.91, 1.06];
+export const PACE_SPEED_FRACTIONS = [0.75, 0.85, 0.93, 1.0];
 
 export function lthrForSport(t: ThresholdValues, sport: Sport): number | null {
   switch (sport) {

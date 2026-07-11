@@ -5,6 +5,7 @@ import { LactateTrendCard } from "@/components/athlete/lactate-trend";
 import { ThresholdsCard } from "@/components/athlete/thresholds-card";
 import { FitUploadButton } from "@/components/fit-upload-button";
 import { WorkoutList } from "@/components/workout-list";
+import { primaryZoneSeconds, ZoneBar, zoneTooltip } from "@/components/zone-bar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,8 +21,11 @@ import {
   getWorkoutsForAthlete,
 } from "@/lib/access";
 import { getActingUser } from "@/lib/acting-user";
+import { formatDuration } from "@/lib/format";
 import { getLactateTrend } from "@/lib/lactate-data";
-import { getCurrentThresholds } from "@/lib/thresholds";
+import { currentWeekBounds, weekSummary } from "@/lib/stats";
+import { getCurrentThresholds, getThresholdHistory } from "@/lib/thresholds";
+import { buildTssMap } from "@/lib/tss";
 
 export default async function AthleteDetailPage({
   params,
@@ -36,13 +40,31 @@ export default async function AthleteDetailPage({
   const athlete = await getUserById(id);
   if (!athlete || athlete.role !== "athlete") notFound();
 
-  const [allWorkouts, thresholds, lactateTrend] = await Promise.all([
-    getWorkoutsForAthlete(id),
-    getCurrentThresholds(id),
-    getLactateTrend(id),
-  ]);
-  const planned = allWorkouts.filter((w) => w.status === "planned");
-  const completed = allWorkouts.filter((w) => w.status === "completed");
+  const [allWorkouts, thresholds, thresholdHistory, lactateTrend] =
+    await Promise.all([
+      getWorkoutsForAthlete(id),
+      getCurrentThresholds(id),
+      getThresholdHistory(id),
+      getLactateTrend(id),
+    ]);
+
+  const { start, end } = currentWeekBounds();
+  const week = allWorkouts
+    .filter((w) => w.date >= start && w.date <= end)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const summary = weekSummary(allWorkouts);
+  const tss = buildTssMap(week, thresholdHistory);
+  let load = 0;
+  let plannedLoad = 0;
+  const zoneSeconds: number[] = [];
+  for (const w of week) {
+    load += tss[w.id]?.actual ?? 0;
+    plannedLoad += tss[w.id]?.planned ?? 0;
+    const zones = w.timeInZones ? primaryZoneSeconds(w.timeInZones) : null;
+    zones?.seconds.forEach((sec, i) => {
+      zoneSeconds[i] = (zoneSeconds[i] ?? 0) + sec;
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -103,30 +125,70 @@ export default async function AthleteDetailPage({
 
       <LactateTrendCard trend={lactateTrend} />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Planned</CardTitle>
-            <CardDescription>
-              {planned.length} upcoming or unfinished sessions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <WorkoutList workouts={planned} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Completed</CardTitle>
-            <CardDescription>
-              {completed.length} finished sessions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <WorkoutList workouts={completed} />
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle>This week</CardTitle>
+              <CardDescription>
+                {summary.completedCount}/{summary.count} sessions done — full
+                history lives in the calendar.
+              </CardDescription>
+            </div>
+            <Link
+              href={`/calendar?athlete=${athlete.id}`}
+              className="text-sm text-muted-foreground hover:underline"
+            >
+              Open calendar →
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Hours
+              </p>
+              <p className="text-2xl font-semibold">
+                {formatDuration(summary.doneSec)}
+                <span className="text-sm font-normal text-muted-foreground">
+                  {" "}
+                  / {formatDuration(summary.plannedSec)}
+                </span>
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Load
+              </p>
+              <p className="text-2xl font-semibold">
+                {load}
+                <span className="text-sm font-normal text-muted-foreground">
+                  {" "}
+                  / {plannedLoad} planned
+                </span>
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Time in zones
+              </p>
+              {zoneSeconds.some((s) => s > 0) ? (
+                <ZoneBar
+                  seconds={zoneSeconds}
+                  size="sm"
+                  title={zoneTooltip(zoneSeconds)}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No recorded sessions yet
+                </p>
+              )}
+            </div>
+          </div>
+          <WorkoutList workouts={week} />
+        </CardContent>
+      </Card>
     </div>
   );
 }

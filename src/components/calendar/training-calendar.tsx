@@ -3,10 +3,11 @@
 import { AlertCircle, Check, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import {
   copyWorkoutToDate,
+  loadCalendarMonth,
   moveWorkout,
   quickCreateWorkout,
 } from "@/app/actions/workouts";
@@ -28,10 +29,10 @@ import {
   zoneTooltip,
 } from "@/components/zone-bar";
 import type { Sport, Workout, WorkoutTemplate } from "@/db/schema";
-import { isoMonthMatches } from "@/lib/calendar";
+import { isoMonthMatches, monthGrid, monthLabel, shiftMonth } from "@/lib/calendar";
 import { formatDistance, formatDuration } from "@/lib/format";
 import { SPORTS } from "@/lib/sports";
-import type { WorkoutTss } from "@/lib/tss";
+import { projectedZoneSeconds, type WorkoutTss } from "@/lib/tss";
 import { cn } from "@/lib/utils";
 
 export type RecentSession = {
@@ -69,6 +70,11 @@ function WorkoutChip({ workout, today }: { workout: Workout; today: string }) {
   const zones = workout.timeInZones
     ? primaryZoneSeconds(workout.timeInZones)
     : null;
+  // Planned sessions without a recording: project zones from the structure.
+  const projected =
+    !zones && workout.status === "planned" && workout.structure
+      ? projectedZoneSeconds(workout.structure)
+      : null;
   return (
     <Link
       href={`/workouts/${workout.id}`}
@@ -107,6 +113,14 @@ function WorkoutChip({ workout, today }: { workout: Workout; today: string }) {
       )}
       {zones && (
         <ZoneBar seconds={zones.seconds} size="xs" className="mt-1" />
+      )}
+      {projected && (
+        <ZoneBar
+          seconds={projected}
+          size="xs"
+          className="mt-1 opacity-60"
+          title={`Projected: ${zoneTooltip(projected)}`}
+        />
       )}
     </Link>
   );
@@ -483,15 +497,102 @@ export function TrainingCalendar({
   const [quickAddDate, setQuickAddDate] = useState<string | null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
 
+  // Months appended below the server-rendered one by the infinite scroll.
+  // The page keys this component on athlete+month, so a navigation resets it.
+  type MonthSection = {
+    year: number;
+    month: number;
+    weeks: string[][];
+    workouts: Workout[];
+    tssById: Record<string, WorkoutTss>;
+  };
+  const [extra, setExtra] = useState<MonthSection[]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadingRef = useRef(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      async ([entry]) => {
+        if (!entry.isIntersecting || loadingRef.current) return;
+        loadingRef.current = true;
+        setLoadingMore(true);
+        try {
+          const last = extra.at(-1) ?? { year, month };
+          const next = shiftMonth(last.year, last.month, 1);
+          const data = await loadCalendarMonth(
+            athleteId,
+            next.year,
+            next.month,
+          );
+          setExtra((prev) => [
+            ...prev,
+            { ...next, weeks: monthGrid(next.year, next.month).weeks, ...data },
+          ]);
+        } finally {
+          loadingRef.current = false;
+          setLoadingMore(false);
+        }
+      },
+      { rootMargin: "300px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [athleteId, year, month, extra]);
+
+  // Server mutations only refresh the server-rendered month; re-pull the
+  // client-loaded ones so drops/quick-adds there don't show stale data.
+  async function refreshExtras() {
+    if (extra.length === 0) return;
+    const refreshed = await Promise.all(
+      extra.map(async (s) => ({
+        ...s,
+        ...(await loadCalendarMonth(athleteId, s.year, s.month)),
+      })),
+    );
+    setExtra(refreshed);
+  }
+
   const byDate = useMemo(() => {
+    // Boundary weeks make months overlap — dedupe by id, freshest last: the
+    // server-rendered props win over possibly-stale extras.
+    const byId = new Map<string, Workout>();
+    for (const s of extra) for (const w of s.workouts) byId.set(w.id, w);
+    for (const w of workouts) byId.set(w.id, w);
     const map = new Map<string, Workout[]>();
-    for (const w of workouts) {
+    for (const w of byId.values()) {
       const list = map.get(w.date);
       if (list) list.push(w);
       else map.set(w.date, [w]);
     }
     return map;
-  }, [workouts]);
+  }, [workouts, extra]);
+
+  const mergedTss = useMemo(() => {
+    const merged: Record<string, WorkoutTss> = {};
+    for (const s of extra) Object.assign(merged, s.tssById);
+    Object.assign(merged, tssById);
+    return merged;
+  }, [tssById, extra]);
+
+  // Week rows to render, with month labels for appended months. A week
+  // already shown as a previous month's trailing row isn't repeated.
+  const sections = useMemo(() => {
+    const seen = new Set<string>();
+    const take = (weekList: string[][]) =>
+      weekList.filter((w) => !seen.has(w[0]) && (seen.add(w[0]), true));
+    return [
+      { year, month, label: null as string | null, weeks: take(weeks) },
+      ...extra.map((s) => ({
+        year: s.year,
+        month: s.month,
+        label: monthLabel(s.year, s.month),
+        weeks: take(s.weeks),
+      })),
+    ];
+  }, [year, month, weeks, extra]);
 
   function handleDrop(date: string, e: React.DragEvent) {
     e.preventDefault();
@@ -502,6 +603,7 @@ export function TrainingCalendar({
     startTransition(async () => {
       if (copy) await copyWorkoutToDate(id, date);
       else await moveWorkout(id, date);
+      await refreshExtras();
       router.refresh();
     });
   }
@@ -519,7 +621,14 @@ export function TrainingCalendar({
             <div className="border-l px-2 py-1.5">Week</div>
           </div>
 
-          {weeks.map((week) => {
+          {sections.map((section) => (
+            <div key={`${section.year}-${section.month}`}>
+              {section.label && (
+                <div className="border-b bg-muted/40 px-3 py-1.5 text-sm font-semibold">
+                  {section.label}
+                </div>
+              )}
+              {section.weeks.map((week) => {
             const weekWorkouts = week.flatMap((d) => byDate.get(d) ?? []);
             return (
               <div
@@ -527,7 +636,7 @@ export function TrainingCalendar({
                 className="grid grid-cols-[repeat(7,minmax(0,1fr))_7.5rem] border-b last:border-b-0"
               >
                 {week.map((day) => {
-                  const inMonth = isoMonthMatches(day, year, month);
+                  const inMonth = isoMonthMatches(day, section.year, section.month);
                   const isToday = day === today;
                   const dayWorkouts = byDate.get(day) ?? [];
                   return (
@@ -579,11 +688,20 @@ export function TrainingCalendar({
                   );
                 })}
                 <div className="border-l bg-muted/20">
-                  <WeekSummary workouts={weekWorkouts} tssById={tssById} />
+                  <WeekSummary workouts={weekWorkouts} tssById={mergedTss} />
                 </div>
               </div>
             );
           })}
+            </div>
+          ))}
+
+          <div
+            ref={sentinelRef}
+            className="p-2 text-center text-xs text-muted-foreground"
+          >
+            {loadingMore ? "Loading next month…" : "Scroll for the next month"}
+          </div>
         </div>
       </div>
 
@@ -599,7 +717,10 @@ export function TrainingCalendar({
           recent={recent}
           templates={templates}
           newWorkoutQS={newWorkoutQS}
-          onClose={() => setQuickAddDate(null)}
+          onClose={() => {
+            setQuickAddDate(null);
+            void refreshExtras();
+          }}
         />
       )}
     </div>

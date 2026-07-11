@@ -11,9 +11,16 @@ import {
   workouts,
   workoutStatusEnum,
 } from "@/db/schema";
-import { canAccessAthlete, getWorkoutById } from "@/lib/access";
+import {
+  canAccessAthlete,
+  getWorkoutById,
+  getWorkoutsInRange,
+} from "@/lib/access";
 import { getActingUser } from "@/lib/acting-user";
+import { monthGrid } from "@/lib/calendar";
 import { structureField, totalDurationSec } from "@/lib/structure";
+import { getThresholdHistory } from "@/lib/thresholds";
+import { buildTssMap } from "@/lib/tss";
 
 // Form fields arrive as strings; "" means "not provided". Durations are
 // entered in minutes and stored in seconds; distances entered in km (meters
@@ -269,4 +276,29 @@ export async function deleteWorkout(workoutId: string) {
 
   revalidatePath("/", "layout");
   redirect(redirectTarget(actingUser.id, existing.athleteId));
+}
+
+// Data loader for the calendar's infinite scroll: one month's grid worth of
+// workouts + their load map. Not a mutation, but lives here so the client
+// calendar can call it like its other actions.
+export async function loadCalendarMonth(
+  athleteId: string,
+  year: number,
+  month: number,
+) {
+  await authorizeAthleteAccess(z.uuid().parse(athleteId));
+  const y = z.number().int().min(2000).max(2100).parse(year);
+  const m = z.number().int().min(1).max(12).parse(month);
+
+  const grid = monthGrid(y, m);
+  const gridStart = grid.weeks[0][0];
+  const gridEnd = grid.weeks[grid.weeks.length - 1][6];
+  const [rangeWorkouts, thresholdHistory] = await Promise.all([
+    getWorkoutsInRange(athleteId, gridStart, gridEnd),
+    getThresholdHistory(athleteId),
+  ]);
+  return {
+    workouts: rangeWorkouts,
+    tssById: buildTssMap(rangeWorkouts, thresholdHistory),
+  };
 }
