@@ -51,8 +51,8 @@ export function WorkoutForm({
     <form action={formAction} className="space-y-6">
       <input type="hidden" name="athleteId" value={athleteId} />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2 sm:col-span-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+        <div className="space-y-2 sm:col-span-2 lg:col-span-3">
           <Label htmlFor="title">Title</Label>
           <Input
             id="title"
@@ -110,7 +110,7 @@ export function WorkoutForm({
 
       <fieldset className="space-y-4 rounded-md border p-4">
         <legend className="px-1 text-sm font-medium">Plan</legend>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-2">
             <Label htmlFor="plannedDurationMin">Duration (min)</Label>
             <Input
@@ -145,17 +145,23 @@ export function WorkoutForm({
               <FieldError errors={errors.plannedDistanceKm} />
             </div>
           )}
-          <div className="space-y-2 sm:col-span-2">
+          <div
+            className={cn(
+              "space-y-2 sm:col-span-2",
+              showDistance ? "lg:col-span-2" : "lg:col-span-3",
+            )}
+          >
             <Label htmlFor="description">Instructions</Label>
             <Textarea
               id="description"
               name="description"
               rows={3}
+              className="lg:h-full lg:min-h-9"
               defaultValue={workout?.description ?? ""}
               placeholder="Prescription: intervals, zones, exercises…"
             />
           </div>
-          <div className="space-y-2 sm:col-span-2">
+          <div className="space-y-2 sm:col-span-2 lg:col-span-4">
             <Label>Structure (optional)</Label>
             <StructureBuilder
               name="structureJson"
@@ -172,7 +178,7 @@ export function WorkoutForm({
         )}
       >
         <legend className="px-1 text-sm font-medium">Result</legend>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-4">
           <div className="space-y-2">
             <Label htmlFor="actualDurationMin">Duration (min)</Label>
             <Input
@@ -257,7 +263,7 @@ export function WorkoutForm({
             />
             <FieldError errors={errors.load} />
           </div>
-          <div className="space-y-2 sm:col-span-3">
+          <div className="space-y-2 sm:col-span-3 lg:col-span-4">
             <Label htmlFor="notes">Notes</Label>
             <Textarea
               id="notes"

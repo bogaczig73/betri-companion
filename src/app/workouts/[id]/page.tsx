@@ -54,7 +54,7 @@ export default async function WorkoutDetailPage({
     ]);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -74,48 +74,69 @@ export default async function WorkoutDetailPage({
           <CompleteWorkoutButton workoutId={workout.id} />
         )}
       </div>
-      <div className="mx-auto w-full max-w-2xl">
-        <WorkoutForm athleteId={workout.athleteId} workout={workout} />
-      </div>
+      <div className="grid items-start gap-6 xl:grid-cols-5">
+        <div className="xl:col-span-3">
+          <WorkoutForm athleteId={workout.athleteId} workout={workout} />
+        </div>
 
-      {workout.timeInZones && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Time in zones</CardTitle>
-            <CardDescription>
-              {workout.timeInZones.source === "tp_csv"
-                ? "Imported from TrainingPeaks"
-                : "From the recorded activity, using the athlete's zones on this date"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-6 sm:grid-cols-2">
-            {workout.timeInZones.hr && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Heart rate
-                </p>
-                <ZoneBreakdown seconds={workout.timeInZones.hr} />
-              </div>
-            )}
-            {workout.timeInZones.power && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Power
-                </p>
-                <ZoneBreakdown seconds={workout.timeInZones.power} />
-              </div>
-            )}
-            {workout.timeInZones.pace && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Pace
-                </p>
-                <ZoneBreakdown seconds={workout.timeInZones.pace} />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+        <div className="space-y-6 xl:col-span-2">
+          {workout.timeInZones && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Time in zones</CardTitle>
+                <CardDescription>
+                  {workout.timeInZones.source === "tp_csv"
+                    ? "Imported from TrainingPeaks"
+                    : "From the recorded activity, using the athlete's zones on this date"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-6 sm:grid-cols-2">
+                {workout.timeInZones.hr && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Heart rate
+                    </p>
+                    <ZoneBreakdown seconds={workout.timeInZones.hr} />
+                  </div>
+                )}
+                {workout.timeInZones.power && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Power
+                    </p>
+                    <ZoneBreakdown seconds={workout.timeInZones.power} />
+                  </div>
+                )}
+                {workout.timeInZones.pace && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Pace
+                    </p>
+                    <ZoneBreakdown seconds={workout.timeInZones.pace} />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>AI analysis</CardTitle>
+              <CardDescription>
+                Grounded in the science paper library: every [n] cites a paper
+                passage; uncited interpretation is marked as model inference.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AnalysisPanel
+                subject={{ workoutId: workout.id }}
+                initialAnalyses={analyses.map(toAnalysisView)}
+                disabledReason={analysisDisabledReason}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
       {isLactateSport(workout.sport) && (
         <Card>
@@ -153,23 +174,6 @@ export default async function WorkoutDetailPage({
           </CardContent>
         </Card>
       )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>AI analysis</CardTitle>
-          <CardDescription>
-            Grounded in the science paper library: every [n] cites a paper
-            passage; uncited interpretation is marked as model inference.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AnalysisPanel
-            subject={{ workoutId: workout.id }}
-            initialAnalyses={analyses.map(toAnalysisView)}
-            disabledReason={analysisDisabledReason}
-          />
-        </CardContent>
-      </Card>
     </div>
   );
 }
