@@ -31,6 +31,7 @@ import type { Sport, Workout, WorkoutTemplate } from "@/db/schema";
 import { isoMonthMatches } from "@/lib/calendar";
 import { formatDistance, formatDuration } from "@/lib/format";
 import { SPORTS } from "@/lib/sports";
+import type { WorkoutTss } from "@/lib/tss";
 import { cn } from "@/lib/utils";
 
 export type RecentSession = {
@@ -111,7 +112,13 @@ function WorkoutChip({ workout, today }: { workout: Workout; today: string }) {
   );
 }
 
-function WeekSummary({ workouts }: { workouts: Workout[] }) {
+function WeekSummary({
+  workouts,
+  tssById,
+}: {
+  workouts: Workout[];
+  tssById: Record<string, WorkoutTss>;
+}) {
   const plannedSec = workouts.reduce(
     (sum, w) => sum + (w.plannedDurationSec ?? w.actualDurationSec ?? 0),
     0,
@@ -123,10 +130,14 @@ function WeekSummary({ workouts }: { workouts: Workout[] }) {
         : sum,
     0,
   );
-  const load = workouts.reduce(
-    (sum, w) => (w.status === "completed" ? sum + (w.load ?? 0) : sum),
-    0,
-  );
+  // Actual load = device TSS or server-side estimate; planned = prescribed.
+  let load = 0;
+  let plannedLoad = 0;
+  for (const w of workouts) {
+    const tss = tssById[w.id];
+    load += tss?.actual ?? 0;
+    plannedLoad += tss?.planned ?? 0;
+  }
   const completedCount = workouts.filter(
     (w) => w.status === "completed",
   ).length;
@@ -170,7 +181,13 @@ function WeekSummary({ workouts }: { workouts: Workout[] }) {
       </div>
       <p className="text-muted-foreground">
         {completedCount}/{workouts.length} done
-        {load > 0 && <> · {load} load</>}
+        {(load > 0 || plannedLoad > 0) && (
+          <>
+            {" "}
+            · {load}
+            {plannedLoad > 0 && ` / ${plannedLoad}`} load
+          </>
+        )}
       </p>
       {hasZones && (
         <div className="space-y-1 pt-0.5">
@@ -444,6 +461,7 @@ export function TrainingCalendar({
   month,
   weeks,
   workouts,
+  tssById,
   recent,
   templates,
   today,
@@ -454,6 +472,7 @@ export function TrainingCalendar({
   month: number;
   weeks: string[][];
   workouts: Workout[];
+  tssById: Record<string, WorkoutTss>;
   recent: RecentSession[];
   templates: WorkoutTemplate[];
   today: string;
@@ -560,7 +579,7 @@ export function TrainingCalendar({
                   );
                 })}
                 <div className="border-l bg-muted/20">
-                  <WeekSummary workouts={weekWorkouts} />
+                  <WeekSummary workouts={weekWorkouts} tssById={tssById} />
                 </div>
               </div>
             );

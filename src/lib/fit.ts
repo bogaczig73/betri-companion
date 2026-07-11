@@ -9,6 +9,7 @@ import { buildHistograms, type FitRecord } from "@/lib/fit-histograms";
 import { SPORTS } from "@/lib/sports";
 import { getThresholdsForDate } from "@/lib/thresholds";
 import { computeTimeInZones } from "@/lib/time-in-zones";
+import { estimateActualTss } from "@/lib/tss";
 
 // FIT sport → our sport enum. Anything unmapped is stored as a raw activity
 // but not normalized into a workout.
@@ -193,6 +194,13 @@ export async function processFitFile(input: {
         ? Math.round(session.trainingStressScore)
         : null,
     };
+
+    // Devices without a power meter often omit trainingStressScore; fill the
+    // load from the best available estimate so weekly totals stay usable.
+    if (actuals.load == null) {
+      actuals.load =
+        estimateActualTss({ sport, ...actuals }, thresholds)?.tss ?? null;
+    }
 
     // Reconcile: if a planned workout exists for this athlete on the same
     // date and sport, complete it with the recorded actuals instead of

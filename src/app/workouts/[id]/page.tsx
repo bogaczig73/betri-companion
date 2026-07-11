@@ -31,6 +31,11 @@ import {
 import { isLactateSport } from "@/lib/lactate";
 import { getTestForWorkout, testBaseline, testSport } from "@/lib/lactate-data";
 import { getThresholdsForDate } from "@/lib/thresholds";
+import {
+  estimateActualTss,
+  estimatePlannedTss,
+  TSS_METHOD_LABELS,
+} from "@/lib/tss";
 
 export default async function WorkoutDetailPage({
   params,
@@ -55,6 +60,15 @@ export default async function WorkoutDetailPage({
       getAnalysisDisabledReason(),
       getThresholdsForDate(workout.athleteId, workout.date),
     ]);
+
+  const actualTss =
+    workout.status === "completed"
+      ? estimateActualTss(workout, thresholds)
+      : null;
+  const plannedTss = estimatePlannedTss(
+    workout.structure,
+    workout.plannedDurationSec,
+  );
 
   return (
     <div className="space-y-6">
@@ -90,6 +104,35 @@ export default async function WorkoutDetailPage({
         </div>
 
         <div className="space-y-6 xl:col-span-2">
+          {(actualTss || plannedTss != null) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Training load</CardTitle>
+                <CardDescription>
+                  TSS-like load: hours × intensity² × 100.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
+                {actualTss && (
+                  <p>
+                    <span className="text-3xl font-semibold">
+                      {actualTss.method === "device" ? "" : "≈ "}
+                      {actualTss.tss}
+                    </span>{" "}
+                    <span className="text-sm text-muted-foreground">
+                      TSS, {TSS_METHOD_LABELS[actualTss.method]}
+                    </span>
+                  </p>
+                )}
+                {plannedTss != null && (
+                  <p className="text-sm text-muted-foreground">
+                    planned ≈ {plannedTss}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {workout.timeInZones && (
             <Card>
               <CardHeader>
