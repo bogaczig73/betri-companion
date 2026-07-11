@@ -7,6 +7,7 @@ import { AddLactateButton } from "@/components/lactate/add-lactate-button";
 import { LactateTestDetail } from "@/components/lactate/lactate-test-detail";
 import { SportBadge } from "@/components/sport-badge";
 import { WorkoutForm } from "@/components/workout-form";
+import { ZoneBreakdown } from "@/components/zone-bar";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -76,6 +77,45 @@ export default async function WorkoutDetailPage({
       <div className="mx-auto w-full max-w-2xl">
         <WorkoutForm athleteId={workout.athleteId} workout={workout} />
       </div>
+
+      {workout.timeInZones && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Time in zones</CardTitle>
+            <CardDescription>
+              {workout.timeInZones.source === "tp_csv"
+                ? "Imported from TrainingPeaks"
+                : "From the recorded activity, using the athlete's zones on this date"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-6 sm:grid-cols-2">
+            {workout.timeInZones.hr && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Heart rate
+                </p>
+                <ZoneBreakdown seconds={workout.timeInZones.hr} />
+              </div>
+            )}
+            {workout.timeInZones.power && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Power
+                </p>
+                <ZoneBreakdown seconds={workout.timeInZones.power} />
+              </div>
+            )}
+            {workout.timeInZones.pace && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Pace
+                </p>
+                <ZoneBreakdown seconds={workout.timeInZones.pace} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {isLactateSport(workout.sport) && (
         <Card>

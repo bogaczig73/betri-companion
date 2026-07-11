@@ -11,7 +11,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx src/db/seed.ts",
-    "validate:lactate": "tsx scripts/validate-lactate.ts"
+    "validate:lactate": "tsx scripts/validate-lactate.ts",
+    "import:tp": "tsx scripts/import-trainingpeaks.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",

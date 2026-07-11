@@ -5,7 +5,10 @@ import { and, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import { rawActivities, workouts, type Sport } from "@/db/schema";
+import { buildHistograms, type FitRecord } from "@/lib/fit-histograms";
 import { SPORTS } from "@/lib/sports";
+import { getThresholdsForDate } from "@/lib/thresholds";
+import { computeTimeInZones } from "@/lib/time-in-zones";
 
 // FIT sport → our sport enum. Anything unmapped is stored as a raw activity
 // but not normalized into a workout.
@@ -32,6 +35,24 @@ type FitSession = {
   avgPower?: number;
   trainingStressScore?: number;
 };
+
+// Records belonging to one session (multi-sport files carry several sessions
+// back to back). Bounded by session start … start + elapsed; when the file
+// has a single session all records qualify.
+function sessionRecords(
+  records: FitRecord[],
+  session: FitSession,
+  sessionCount: number,
+): FitRecord[] {
+  if (sessionCount <= 1 || !session.startTime) return records;
+  const start = session.startTime.getTime();
+  const end =
+    start + (session.totalElapsedTime ?? session.totalTimerTime ?? 0) * 1000;
+  return records.filter((r) => {
+    const t = r.timestamp?.getTime();
+    return t != null && t >= start && t <= end;
+  });
+}
 
 export type FitImportResult = {
   fileName: string;
@@ -120,6 +141,7 @@ export async function processFitFile(input: {
 
   const created: { id: string; reconciled: boolean }[] = [];
   const skippedSports: string[] = [];
+  const allRecords = (messages.recordMesgs ?? []) as FitRecord[];
 
   for (const session of sessions) {
     const sport = session.sport ? SPORT_MAP[session.sport] : undefined;
@@ -130,7 +152,32 @@ export async function processFitFile(input: {
 
     // Workout date from the session start (UTC calendar date).
     const date = (session.startTime ?? new Date()).toISOString().slice(0, 10);
+
+    // Intensity distributions from the per-second records (kept only as
+    // compact histograms), plus the zone split under the thresholds in force
+    // on the workout date, when the athlete has any.
+    const histograms = buildHistograms(
+      sessionRecords(allRecords, session, sessions.length),
+    );
+    const thresholds = await getThresholdsForDate(athleteId, date);
+    const timeInZones = thresholds
+      ? computeTimeInZones(
+          {
+            hrHistogram: histograms.hr,
+            powerHistogram: histograms.power,
+            speedHistogram: histograms.speed,
+          },
+          thresholds,
+          sport,
+          "fit",
+        )
+      : null;
+
     const actuals = {
+      hrHistogram: histograms.hr,
+      powerHistogram: histograms.power,
+      speedHistogram: histograms.speed,
+      timeInZones,
       actualDurationSec: session.totalTimerTime
         ? Math.round(session.totalTimerTime)
         : session.totalElapsedTime

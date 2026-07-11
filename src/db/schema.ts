@@ -15,6 +15,7 @@ import {
 
 import type { LibraryAnswer } from "@/lib/citations";
 import type { WorkoutStructure } from "@/lib/structure";
+import type { TimeInZones, ZoneOverrides } from "@/lib/zones";
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -44,6 +45,7 @@ export const workoutSourceEnum = pgEnum("workout_source", [
   "strava",
   "garmin",
   "apple_health",
+  "tp_import", // one-off TrainingPeaks CSV/FIT export import
 ]);
 
 // ---------------------------------------------------------------------------
@@ -258,6 +260,16 @@ export const workouts = pgTable(
     rpe: integer("rpe"), // 1–10
     load: integer("load"), // TSS-like training load
     notes: text("notes"), // athlete/coach post-workout notes
+    // Compact intensity distributions built from FIT records at import, kept
+    // so time-in-zones can be recomputed whenever zone definitions change.
+    // Keys are stringified buckets: exact bpm for HR, 5 W buckets for power,
+    // 0.1 m/s buckets for speed; values are seconds spent in the bucket.
+    hrHistogram: jsonb("hr_histogram").$type<Record<string, number>>(),
+    powerHistogram: jsonb("power_histogram").$type<Record<string, number>>(),
+    speedHistogram: jsonb("speed_histogram").$type<Record<string, number>>(),
+    // Display cache: seconds per zone, derived from the histograms + the
+    // thresholds effective at `date`, or imported directly (TrainingPeaks CSV).
+    timeInZones: jsonb("time_in_zones").$type<TimeInZones>(),
     ...timestamps,
   },
   (t) => [index("workouts_athlete_date_idx").on(t.athleteId, t.date)],
@@ -379,6 +391,86 @@ export const lactateSteps = pgTable(
     ...timestamps,
   },
   (t) => [index("lactate_steps_test_idx").on(t.testId, t.stageNumber)],
+);
+
+// ---------------------------------------------------------------------------
+// Daily wellness metrics (resting HR, body battery, stress, …)
+// ---------------------------------------------------------------------------
+
+// One row per athlete+date+kind. Parked data for future readiness features;
+// currently only populated by the TrainingPeaks import. value shapes:
+// { min?, max?, avg? } for ranged metrics, { value } for scalars/flags.
+export const athleteDailyMetrics = pgTable(
+  "athlete_daily_metrics",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    athleteId: uuid("athlete_id")
+      .notNull()
+      .references(() => users.id),
+    date: date("date").notNull(),
+    kind: text("kind").notNull(), // body_battery | stress | resting_hr | menstruation | sickness
+    value: jsonb("value")
+      .$type<{ min?: number; max?: number; avg?: number; value?: number }>()
+      .notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("athlete_daily_metrics_unique").on(t.athleteId, t.date, t.kind),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// Athlete thresholds & zones
+// ---------------------------------------------------------------------------
+
+export const thresholdSourceEnum = pgEnum("threshold_source", [
+  "manual",
+  "lactate_test",
+  "import",
+]);
+
+// One row = a complete per-sport threshold snapshot valid from effectiveDate.
+// The profile that applies to a workout is the latest row with
+// effectiveDate <= workout.date, which gives zone history for free (old
+// workouts keep the zones that were valid when they happened). Zone
+// boundaries are derived from these values in src/lib/zones.ts; zoneOverrides
+// lets a coach pin explicit boundaries per metric instead.
+export const athleteThresholds = pgTable(
+  "athlete_thresholds",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    athleteId: uuid("athlete_id")
+      .notNull()
+      .references(() => users.id),
+    setById: uuid("set_by_id").references(() => users.id),
+    source: thresholdSourceEnum("source").notNull().default("manual"),
+    // Set when the snapshot was derived from a lactate test's LT consensus.
+    lactateTestId: uuid("lactate_test_id").references(() => lactateTests.id),
+    effectiveDate: date("effective_date").notNull(),
+    maxHr: integer("max_hr"),
+    // Bike. ftpW is LT2 power; bikeLt1W anchors the aerobic ceiling.
+    ftpW: integer("ftp_w"),
+    bikeLthr: integer("bike_lthr"),
+    bikeLt1W: integer("bike_lt1_w"),
+    // Run. Running watts are deliberately separate from bike FTP — different
+    // physiology, and TSS from running power must not use the bike number.
+    runThresholdPaceSecPerKm: integer("run_threshold_pace_sec_per_km"),
+    runLthr: integer("run_lthr"),
+    runThresholdPowerW: integer("run_threshold_power_w"),
+    runLt1PaceSecPerKm: integer("run_lt1_pace_sec_per_km"),
+    // Swim.
+    cssPaceSecPer100m: integer("css_pace_sec_per_100m"),
+    swimLthr: integer("swim_lthr"),
+    zoneOverrides: jsonb("zone_overrides").$type<ZoneOverrides>(),
+    notes: text("notes"),
+    ...timestamps,
+  },
+  (t) => [
+    index("athlete_thresholds_athlete_date_idx").on(
+      t.athleteId,
+      t.effectiveDate,
+    ),
+  ],
 );
 
 // ---------------------------------------------------------------------------
@@ -508,3 +600,6 @@ export type PaperStatus = (typeof paperStatusEnum.enumValues)[number];
 export type PaperChunk = typeof paperChunks.$inferSelect;
 export type AnalysisResult = typeof analysisResults.$inferSelect;
 export type AnalysisSubject = (typeof analysisSubjectEnum.enumValues)[number];
+export type AthleteThresholds = typeof athleteThresholds.$inferSelect;
+export type NewAthleteThresholds = typeof athleteThresholds.$inferInsert;
+export type ThresholdSource = (typeof thresholdSourceEnum.enumValues)[number];

@@ -21,6 +21,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  primaryZoneSeconds,
+  ZoneBar,
+  zoneTooltip,
+} from "@/components/zone-bar";
 import type { Sport, Workout } from "@/db/schema";
 import { isoMonthMatches } from "@/lib/calendar";
 import { formatDistance, formatDuration } from "@/lib/format";
@@ -59,6 +64,9 @@ function WorkoutChip({ workout, today }: { workout: Workout; today: string }) {
   const { icon: Icon, className } = SPORTS[workout.sport];
   const missed = workout.status === "planned" && workout.date < today;
   const metrics = chipMetrics(workout);
+  const zones = workout.timeInZones
+    ? primaryZoneSeconds(workout.timeInZones)
+    : null;
   return (
     <Link
       href={`/workouts/${workout.id}`}
@@ -95,6 +103,9 @@ function WorkoutChip({ workout, today }: { workout: Workout; today: string }) {
       {metrics && (
         <span className="mt-0.5 block truncate opacity-75">{metrics}</span>
       )}
+      {zones && (
+        <ZoneBar seconds={zones.seconds} size="xs" className="mt-1" />
+      )}
     </Link>
   );
 }
@@ -120,6 +131,19 @@ function WeekSummary({ workouts }: { workouts: Workout[] }) {
   ).length;
   const pct =
     plannedSec > 0 ? Math.min(100, Math.round((doneSec / plannedSec) * 100)) : 0;
+
+  // Weekly zone distribution: sum each workout's primary metric split. Mixing
+  // HR- and power-based splits is an approximation, but the zones mean the
+  // same intensity bands either way.
+  const zoneSeconds: number[] = [];
+  for (const w of workouts) {
+    const zones = w.timeInZones ? primaryZoneSeconds(w.timeInZones) : null;
+    if (!zones) continue;
+    zones.seconds.forEach((sec, i) => {
+      zoneSeconds[i] = (zoneSeconds[i] ?? 0) + sec;
+    });
+  }
+  const hasZones = zoneSeconds.some((s) => s > 0);
 
   if (workouts.length === 0) {
     return (
@@ -147,6 +171,18 @@ function WeekSummary({ workouts }: { workouts: Workout[] }) {
         {completedCount}/{workouts.length} done
         {load > 0 && <> · {load} load</>}
       </p>
+      {hasZones && (
+        <div className="space-y-1 pt-0.5">
+          <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+            Time in zones
+          </p>
+          <ZoneBar
+            seconds={zoneSeconds}
+            size="sm"
+            title={zoneTooltip(zoneSeconds)}
+          />
+        </div>
+      )}
     </div>
   );
 }

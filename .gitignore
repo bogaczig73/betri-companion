@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# TrainingPeaks export of the test athlete — personal data, keep out of git
+inspiration/

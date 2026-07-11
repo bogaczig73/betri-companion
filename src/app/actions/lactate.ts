@@ -10,6 +10,7 @@ import { lactateSteps, lactateTests, workouts } from "@/db/schema";
 import { canAccessAthlete } from "@/lib/access";
 import { getActingUser } from "@/lib/acting-user";
 import { isLactateSport, LACTATE_SPORTS, mmolToMilli } from "@/lib/lactate";
+import { syncThresholdsFromTest } from "@/lib/thresholds";
 
 async function authorize(athleteId: string) {
   const actingUser = await getActingUser();
@@ -134,6 +135,8 @@ export async function deleteTest(testId: string) {
     .update(lactateSteps)
     .set({ deletedAt: new Date() })
     .where(eq(lactateSteps.testId, testId));
+  // Retract the threshold snapshot this test produced, if any.
+  await syncThresholdsFromTest(testId);
   revalidatePath("/lactate");
   redirect("/lactate");
 }
@@ -165,6 +168,7 @@ export async function setTestBaseline(
       includeBaseline: data.includeBaseline,
     })
     .where(eq(lactateTests.id, testId));
+  await syncThresholdsFromTest(testId);
   revalidatePath(`/lactate/${testId}`);
 }
 
@@ -199,6 +203,7 @@ export async function addStep(
     heartRate: data.heartRate ?? null,
     durationSec: data.durationSec ?? null,
   });
+  await syncThresholdsFromTest(testId);
   revalidatePath(`/lactate/${testId}`);
 }
 
@@ -218,6 +223,7 @@ export async function updateStep(
       durationSec: data.durationSec ?? null,
     })
     .where(and(eq(lactateSteps.id, stepId), eq(lactateSteps.testId, testId)));
+  await syncThresholdsFromTest(testId);
   revalidatePath(`/lactate/${testId}`);
 }
 
@@ -227,5 +233,6 @@ export async function deleteStep(stepId: string, testId: string) {
     .update(lactateSteps)
     .set({ deletedAt: new Date() })
     .where(and(eq(lactateSteps.id, stepId), eq(lactateSteps.testId, testId)));
+  await syncThresholdsFromTest(testId);
   revalidatePath(`/lactate/${testId}`);
 }

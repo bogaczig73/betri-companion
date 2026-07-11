@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import { LactateTrendCard } from "@/components/athlete/lactate-trend";
+import { ThresholdsCard } from "@/components/athlete/thresholds-card";
 import { FitUploadButton } from "@/components/fit-upload-button";
 import { WorkoutList } from "@/components/workout-list";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -18,6 +20,8 @@ import {
   getWorkoutsForAthlete,
 } from "@/lib/access";
 import { getActingUser } from "@/lib/acting-user";
+import { getLactateTrend } from "@/lib/lactate-data";
+import { getCurrentThresholds } from "@/lib/thresholds";
 
 export default async function AthleteDetailPage({
   params,
@@ -32,7 +36,11 @@ export default async function AthleteDetailPage({
   const athlete = await getUserById(id);
   if (!athlete || athlete.role !== "athlete") notFound();
 
-  const allWorkouts = await getWorkoutsForAthlete(id);
+  const [allWorkouts, thresholds, lactateTrend] = await Promise.all([
+    getWorkoutsForAthlete(id),
+    getCurrentThresholds(id),
+    getLactateTrend(id),
+  ]);
   const planned = allWorkouts.filter((w) => w.status === "planned");
   const completed = allWorkouts.filter((w) => w.status === "completed");
 
@@ -90,6 +98,10 @@ export default async function AthleteDetailPage({
           </Button>
         </div>
       </div>
+
+      <ThresholdsCard athleteId={athlete.id} current={thresholds} />
+
+      <LactateTrendCard trend={lactateTrend} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
