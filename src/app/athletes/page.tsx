@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ChevronRight, Users } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
+import { UserManager } from "@/components/users/user-manager";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Card,
@@ -11,20 +12,26 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getAthletesForCoach } from "@/lib/access";
-import { getActingUser } from "@/lib/acting-user";
+import { getAllCoachLinks, getAthletesForCoach } from "@/lib/access";
+import { getActingUser, getAllUsers } from "@/lib/acting-user";
 
 export default async function AthletesPage() {
   const actingUser = await getActingUser();
   if (!actingUser || actingUser.role !== "coach") redirect("/");
 
-  const athletes = await getAthletesForCoach(actingUser.id);
+  const [athletes, users, links] = await Promise.all([
+    getAthletesForCoach(actingUser.id),
+    getAllUsers(),
+    getAllCoachLinks(),
+  ]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Athletes</h1>
-        <p className="text-muted-foreground">Your roster.</p>
+        <p className="text-muted-foreground">
+          Your roster, accounts, and coach–athlete links.
+        </p>
       </div>
       <Card>
         <CardHeader>
@@ -74,6 +81,8 @@ export default async function AthletesPage() {
           )}
         </CardContent>
       </Card>
+
+      <UserManager users={users} links={links} actingUserId={actingUser.id} />
     </div>
   );
 }

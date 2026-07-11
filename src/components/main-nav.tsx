@@ -12,7 +12,7 @@ import {
   FlaskConical,
   LayoutDashboard,
   MessageCircle,
-  UserCog,
+  Plus,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -21,6 +21,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -36,13 +39,16 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   lab: FlaskConical,
   lactate: FlaskConical,
   library: BookOpen,
-  users: UserCog,
+  add: Plus,
 };
 
 export type NavLeaf = {
   href: string;
   label: string;
   icon: keyof typeof NAV_ICONS;
+  /** Nested picker (e.g. "Add workout" → athlete list). Only rendered when
+   * the leaf sits inside a dropdown group; mobile links the leaf href. */
+  sub?: { href: string; label: string }[];
 };
 
 export type NavItem =
@@ -98,6 +104,26 @@ export function MainNav({ items }: { items: NavItem[] }) {
               <DropdownMenuContent align="start" className="w-44">
                 {item.items.map((leaf) => {
                   const LeafIcon = NAV_ICONS[leaf.icon];
+                  if (leaf.sub) {
+                    return (
+                      <DropdownMenuSub key={leaf.href}>
+                        <DropdownMenuSubTrigger className="gap-2">
+                          <LeafIcon className="size-4 text-muted-foreground" />
+                          {leaf.label}
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent className="w-48">
+                          {leaf.sub.map((s) => (
+                            <DropdownMenuItem
+                              key={s.href}
+                              render={<Link href={s.href} />}
+                            >
+                              {s.label}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    );
+                  }
                   return (
                     <DropdownMenuItem
                       key={leaf.href}

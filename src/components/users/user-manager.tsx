@@ -303,9 +303,11 @@ export function UserManager({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
+          <h2 className="text-lg font-semibold tracking-tight">
+            Accounts &amp; links
+          </h2>
           <p className="text-muted-foreground">
-            Accounts and coach–athlete links.
+            Manage user accounts and coach–athlete links.
           </p>
         </div>
         <Button onClick={() => setDialog({ mode: "create" })}>
