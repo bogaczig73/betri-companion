@@ -10,6 +10,7 @@ import {
   moveWorkout,
   quickCreateWorkout,
 } from "@/app/actions/workouts";
+import { createWorkoutFromTemplate } from "@/app/actions/templates";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,7 +27,7 @@ import {
   ZoneBar,
   zoneTooltip,
 } from "@/components/zone-bar";
-import type { Sport, Workout } from "@/db/schema";
+import type { Sport, Workout, WorkoutTemplate } from "@/db/schema";
 import { isoMonthMatches } from "@/lib/calendar";
 import { formatDistance, formatDuration } from "@/lib/format";
 import { SPORTS } from "@/lib/sports";
@@ -191,12 +192,14 @@ function QuickAddDialog({
   athleteId,
   date,
   recent,
+  templates,
   newWorkoutQS,
   onClose,
 }: {
   athleteId: string;
   date: string;
   recent: RecentSession[];
+  templates: WorkoutTemplate[];
   newWorkoutQS: string;
   onClose: () => void;
 }) {
@@ -236,6 +239,22 @@ function QuickAddDialog({
   function repeat(sessionId: string) {
     startTransition(async () => {
       await copyWorkoutToDate(sessionId, date);
+      router.refresh();
+      onClose();
+    });
+  }
+
+  function fromTemplate(templateId: string) {
+    startTransition(async () => {
+      const result = await createWorkoutFromTemplate(
+        templateId,
+        athleteId,
+        date,
+      );
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
       router.refresh();
       onClose();
     });
@@ -326,6 +345,51 @@ function QuickAddDialog({
           </div>
         </form>
 
+        {templates.length > 0 && (
+          <div className="space-y-2 border-t pt-3">
+            <p className="text-xs font-medium text-muted-foreground">
+              From a template
+            </p>
+            <ul className="max-h-40 space-y-1 overflow-y-auto">
+              {templates.map((t) => {
+                const { icon: Icon, className } = SPORTS[t.sport];
+                const parts: string[] = [];
+                if (t.plannedDurationSec)
+                  parts.push(formatDuration(t.plannedDurationSec));
+                if (t.plannedDistanceM)
+                  parts.push(formatDistance(t.plannedDistanceM, t.sport));
+                return (
+                  <li key={t.id}>
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => fromTemplate(t.id)}
+                      className="flex w-full items-center gap-2 rounded-md border px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent disabled:opacity-50"
+                    >
+                      <span
+                        className={cn(
+                          "inline-flex size-5 shrink-0 items-center justify-center rounded",
+                          className,
+                        )}
+                      >
+                        <Icon className="size-3" />
+                      </span>
+                      <span className="min-w-0 flex-1 truncate font-medium">
+                        {t.name}
+                      </span>
+                      {parts.length > 0 && (
+                        <span className="shrink-0 text-muted-foreground">
+                          {parts.join(" · ")}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
         {recent.length > 0 && (
           <div className="space-y-2 border-t pt-3">
             <p className="text-xs font-medium text-muted-foreground">
@@ -381,6 +445,7 @@ export function TrainingCalendar({
   weeks,
   workouts,
   recent,
+  templates,
   today,
   newWorkoutQS,
 }: {
@@ -390,6 +455,7 @@ export function TrainingCalendar({
   weeks: string[][];
   workouts: Workout[];
   recent: RecentSession[];
+  templates: WorkoutTemplate[];
   today: string;
   newWorkoutQS: string;
 }) {
@@ -512,6 +578,7 @@ export function TrainingCalendar({
           athleteId={athleteId}
           date={quickAddDate}
           recent={recent}
+          templates={templates}
           newWorkoutQS={newWorkoutQS}
           onClose={() => setQuickAddDate(null)}
         />

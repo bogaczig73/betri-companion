@@ -5,6 +5,7 @@ import { AnalysisPanel } from "@/components/analysis/analysis-panel";
 import { CompleteWorkoutButton } from "@/components/complete-workout-button";
 import { AddLactateButton } from "@/components/lactate/add-lactate-button";
 import { LactateTestDetail } from "@/components/lactate/lactate-test-detail";
+import { SaveTemplateButton } from "@/components/save-template-button";
 import { SportBadge } from "@/components/sport-badge";
 import { WorkoutForm } from "@/components/workout-form";
 import { ZoneBreakdown } from "@/components/zone-bar";
@@ -29,6 +30,7 @@ import {
 } from "@/lib/analysis";
 import { isLactateSport } from "@/lib/lactate";
 import { getTestForWorkout, testBaseline, testSport } from "@/lib/lactate-data";
+import { getThresholdsForDate } from "@/lib/thresholds";
 
 export default async function WorkoutDetailPage({
   params,
@@ -43,7 +45,7 @@ export default async function WorkoutDetailPage({
   if (!workout) notFound();
   if (!(await canAccessAthlete(actingUser, workout.athleteId))) redirect("/");
 
-  const [athlete, lactate, analyses, analysisDisabledReason] =
+  const [athlete, lactate, analyses, analysisDisabledReason, thresholds] =
     await Promise.all([
       getUserById(workout.athleteId),
       isLactateSport(workout.sport)
@@ -51,6 +53,7 @@ export default async function WorkoutDetailPage({
         : Promise.resolve(null),
       getAnalysesForWorkout(workout.id),
       getAnalysisDisabledReason(),
+      getThresholdsForDate(workout.athleteId, workout.date),
     ]);
 
   return (
@@ -70,13 +73,20 @@ export default async function WorkoutDetailPage({
             {athlete?.name} · {workout.source}
           </p>
         </div>
-        {workout.status === "planned" && (
-          <CompleteWorkoutButton workoutId={workout.id} />
-        )}
+        <div className="flex flex-wrap gap-2">
+          <SaveTemplateButton workoutId={workout.id} />
+          {workout.status === "planned" && (
+            <CompleteWorkoutButton workoutId={workout.id} />
+          )}
+        </div>
       </div>
       <div className="grid items-start gap-6 xl:grid-cols-5">
         <div className="xl:col-span-3">
-          <WorkoutForm athleteId={workout.athleteId} workout={workout} />
+          <WorkoutForm
+            athleteId={workout.athleteId}
+            workout={workout}
+            thresholds={thresholds}
+          />
         </div>
 
         <div className="space-y-6 xl:col-span-2">

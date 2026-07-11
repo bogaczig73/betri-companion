@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  defaultStepTarget,
   describeTarget,
   flattenSteps,
   stepDurationSec,
@@ -17,8 +18,47 @@ import {
   type StructureStep,
   type WorkoutStructure,
 } from "@/lib/structure";
-import { formatDuration } from "@/lib/format";
+import { formatDuration, formatPaceSeconds } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import {
+  lthrForSport,
+  thresholdPowerForSport,
+  thresholdSpeedForSport,
+  type ThresholdValues,
+} from "@/lib/zones";
+import type { Sport } from "@/db/schema";
+
+// "76–90 % FTP ≈ 228–270 W" — absolute translation of a % target using the
+// athlete's thresholds; null when the needed anchor is missing.
+function absoluteTarget(
+  step: StructureStep,
+  sport: Sport | undefined,
+  thresholds: ThresholdValues | null | undefined,
+): string | null {
+  if (!step.target || !sport || !thresholds) return null;
+  const { metric, min, max } = step.target;
+  if (metric === "%ftp" || (metric === "%pace" && sport === "bike")) {
+    const ftp = thresholdPowerForSport(thresholds, sport);
+    if (!ftp) return null;
+    return `≈ ${Math.round((ftp * min) / 100)}–${Math.round((ftp * max) / 100)} W`;
+  }
+  if (metric === "%lthr") {
+    const lthr = lthrForSport(thresholds, sport);
+    if (!lthr) return null;
+    return `≈ ${Math.round((lthr * min) / 100)}–${Math.round((lthr * max) / 100)} bpm`;
+  }
+  if (metric === "%pace") {
+    const speed = thresholdSpeedForSport(thresholds, sport);
+    if (!speed) return null;
+    const unitM = sport === "swim" ? 100 : 1000;
+    const unit = sport === "swim" ? "/100m" : "/km";
+    // Higher % of threshold speed = faster = fewer seconds.
+    const slow = unitM / ((speed * min) / 100);
+    const fast = unitM / ((speed * max) / 100);
+    return `≈ ${formatPaceSeconds(slow)}–${formatPaceSeconds(fast)}${unit}`;
+  }
+  return null;
+}
 
 const KIND_COLORS: Record<StructureStep["kind"], string> = {
   warmup: "bg-(--chart-3)",
@@ -72,20 +112,42 @@ export function StructureProfile({
 // Editor
 // ---------------------------------------------------------------------------
 
-function newStep(): StructureStep {
+function newStep(
+  sport?: Sport,
+  kind: StructureStep["kind"] = "active",
+  durationSec = 600,
+): StructureStep {
   return {
     type: "step",
-    kind: "active",
-    duration: { unit: "sec", value: 600 },
+    kind,
+    duration: { unit: "sec", value: durationSec },
+    target: defaultStepTarget(sport, kind),
   };
+}
+
+// True when the step's target is still exactly the default for its kind —
+// safe to swap when the kind changes.
+function targetIsDefault(step: StructureStep, sport?: Sport): boolean {
+  const def = defaultStepTarget(sport, step.kind);
+  if (!step.target) return !def;
+  return (
+    !!def &&
+    def.metric === step.target.metric &&
+    def.min === step.target.min &&
+    def.max === step.target.max
+  );
 }
 
 function StepEditor({
   step,
+  sport,
+  thresholds,
   onChange,
   onDelete,
 }: {
   step: StructureStep;
+  sport?: Sport;
+  thresholds?: ThresholdValues | null;
   onChange: (s: StructureStep) => void;
   onDelete: () => void;
 }) {
@@ -105,9 +167,17 @@ function StepEditor({
       <select
         className={smallSelect}
         value={step.kind}
-        onChange={(e) =>
-          onChange({ ...step, kind: e.target.value as StructureStep["kind"] })
-        }
+        onChange={(e) => {
+          const kind = e.target.value as StructureStep["kind"];
+          // Untouched target follows the kind; a customized one is kept.
+          onChange({
+            ...step,
+            kind,
+            target: targetIsDefault(step, sport)
+              ? defaultStepTarget(sport, kind)
+              : step.target,
+          });
+        }}
       >
         {STEP_KINDS.map((k) => (
           <option key={k} value={k}>
@@ -200,6 +270,11 @@ function StepEditor({
               })
             }
           />
+          {absoluteTarget(step, sport, thresholds) && (
+            <span className="text-xs whitespace-nowrap text-muted-foreground">
+              {absoluteTarget(step, sport, thresholds)}
+            </span>
+          )}
         </>
       )}
       <button
@@ -217,9 +292,13 @@ function StepEditor({
 export function StructureBuilder({
   name,
   initial,
+  sport,
+  thresholds,
 }: {
   name: string; // form field name carrying the JSON payload
   initial?: WorkoutStructure | null;
+  sport?: Sport; // enables per-kind target prefills
+  thresholds?: ThresholdValues | null; // enables absolute W/pace/bpm hints
 }) {
   const [blocks, setBlocks] = useState<StructureBlock[]>(
     initial?.blocks ?? [],
@@ -246,6 +325,8 @@ export function StructureBuilder({
             <StepEditor
               key={i}
               step={block}
+              sport={sport}
+              thresholds={thresholds}
               onChange={(s) => update(i, s)}
               onDelete={() => remove(i)}
             />
@@ -278,6 +359,8 @@ export function StructureBuilder({
                   <StepEditor
                     key={j}
                     step={s}
+                    sport={sport}
+                    thresholds={thresholds}
                     onChange={(ns) =>
                       update(i, {
                         ...block,
@@ -297,7 +380,10 @@ export function StructureBuilder({
                   variant="ghost"
                   size="xs"
                   onClick={() =>
-                    update(i, { ...block, steps: [...block.steps, newStep()] })
+                    update(i, {
+                      ...block,
+                      steps: [...block.steps, newStep(sport)],
+                    })
                   }
                 >
                   <Plus className="size-3" /> step
@@ -312,7 +398,7 @@ export function StructureBuilder({
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => setBlocks([...blocks, newStep()])}
+          onClick={() => setBlocks([...blocks, newStep(sport)])}
         >
           <Plus className="size-3.5" /> Step
         </Button>
@@ -327,16 +413,8 @@ export function StructureBuilder({
                 type: "repeat",
                 count: 4,
                 steps: [
-                  {
-                    type: "step",
-                    kind: "active",
-                    duration: { unit: "sec", value: 180 },
-                  },
-                  {
-                    type: "step",
-                    kind: "recovery",
-                    duration: { unit: "sec", value: 120 },
-                  },
+                  newStep(sport, "active", 180),
+                  newStep(sport, "recovery", 120),
                 ],
               },
             ])

@@ -184,6 +184,7 @@ function SessionDialog({
               <StructureBuilder
                 name="structureJson"
                 initial={session?.structure}
+                sport={sport}
               />
             </div>
           </div>

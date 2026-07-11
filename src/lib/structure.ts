@@ -143,6 +143,48 @@ export function describeStructure(structure: WorkoutStructure): string {
     .join("\n");
 }
 
+// Sensible per-sport default target when a step is added or its kind changes:
+// bike anchors to FTP, run/swim to threshold *speed* (so warmup 60–75 %pace ≈
+// "at or below ~70 % of LT2"), strength to RPE. rest gets no target.
+type StepTarget = NonNullable<StructureStep["target"]>;
+
+export const DEFAULT_STEP_TARGETS: Record<
+  string,
+  Partial<Record<StructureStep["kind"], StepTarget>>
+> = {
+  bike: {
+    warmup: { metric: "%ftp", min: 50, max: 70 },
+    active: { metric: "%ftp", min: 76, max: 90 },
+    recovery: { metric: "%ftp", min: 45, max: 55 },
+    cooldown: { metric: "%ftp", min: 45, max: 60 },
+  },
+  run: {
+    warmup: { metric: "%pace", min: 60, max: 75 },
+    active: { metric: "%pace", min: 80, max: 95 },
+    recovery: { metric: "%pace", min: 55, max: 70 },
+    cooldown: { metric: "%pace", min: 60, max: 70 },
+  },
+  swim: {
+    warmup: { metric: "%pace", min: 70, max: 80 },
+    active: { metric: "%pace", min: 85, max: 100 },
+    recovery: { metric: "%pace", min: 60, max: 75 },
+    cooldown: { metric: "%pace", min: 65, max: 75 },
+  },
+  strength: {
+    warmup: { metric: "rpe", min: 3, max: 4 },
+    active: { metric: "rpe", min: 6, max: 8 },
+    recovery: { metric: "rpe", min: 2, max: 3 },
+    cooldown: { metric: "rpe", min: 2, max: 3 },
+  },
+};
+
+export function defaultStepTarget(
+  sport: string | undefined,
+  kind: StructureStep["kind"],
+): StepTarget | undefined {
+  return sport ? DEFAULT_STEP_TARGETS[sport]?.[kind] : undefined;
+}
+
 export function describeTarget(step: StructureStep): string | null {
   if (!step.target) return null;
   const { metric, min, max } = step.target;

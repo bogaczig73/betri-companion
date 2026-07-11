@@ -394,6 +394,31 @@ export const lactateSteps = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Workout templates
+// ---------------------------------------------------------------------------
+
+// A named, reusable single-workout prescription owned by its creator.
+// Instantiating copies the values onto a workout — no back-reference, so
+// editing a template never mutates existing workouts.
+export const workoutTemplates = pgTable(
+  "workout_templates",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    createdById: uuid("created_by_id")
+      .notNull()
+      .references(() => users.id),
+    sport: sportEnum("sport").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    plannedDurationSec: integer("planned_duration_sec"),
+    plannedDistanceM: integer("planned_distance_m"),
+    structure: jsonb("structure").$type<WorkoutStructure>(),
+    ...timestamps,
+  },
+  (t) => [index("workout_templates_creator_idx").on(t.createdById)],
+);
+
+// ---------------------------------------------------------------------------
 // Daily wellness metrics (resting HR, body battery, stress, …)
 // ---------------------------------------------------------------------------
 
@@ -600,6 +625,7 @@ export type PaperStatus = (typeof paperStatusEnum.enumValues)[number];
 export type PaperChunk = typeof paperChunks.$inferSelect;
 export type AnalysisResult = typeof analysisResults.$inferSelect;
 export type AnalysisSubject = (typeof analysisSubjectEnum.enumValues)[number];
+export type WorkoutTemplate = typeof workoutTemplates.$inferSelect;
 export type AthleteThresholds = typeof athleteThresholds.$inferSelect;
 export type NewAthleteThresholds = typeof athleteThresholds.$inferInsert;
 export type ThresholdSource = (typeof thresholdSourceEnum.enumValues)[number];

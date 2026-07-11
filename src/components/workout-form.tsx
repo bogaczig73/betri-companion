@@ -13,9 +13,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { Sport, Workout, WorkoutStatus } from "@/db/schema";
+import type {
+  Sport,
+  Workout,
+  WorkoutStatus,
+  WorkoutTemplate,
+} from "@/db/schema";
 import { SPORTS } from "@/lib/sports";
 import { cn } from "@/lib/utils";
+import type { ThresholdValues } from "@/lib/zones";
 
 const selectClassName =
   "border-input bg-transparent h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-input/30";
@@ -29,27 +35,62 @@ export function WorkoutForm({
   athleteId,
   workout,
   defaultDate,
+  templates,
+  thresholds,
 }: {
   athleteId: string;
   workout?: Workout;
   defaultDate?: string;
+  templates?: WorkoutTemplate[]; // offered when creating
+  thresholds?: ThresholdValues | null; // absolute W/pace hints in the builder
 }) {
   const action = workout ? updateWorkout.bind(null, workout.id) : createWorkout;
   const [state, formAction, isPending] = useActionState<
     WorkoutFormState,
     FormData
   >(action, {});
+  // Picking a template remounts the form (key below) so the uncontrolled
+  // fields re-read their defaults from it. Values are copied, not linked.
+  const [template, setTemplate] = useState<WorkoutTemplate | null>(null);
+  const base = workout ?? template;
   const [status, setStatus] = useState<WorkoutStatus>(
     workout?.status ?? "planned",
   );
-  const [sport, setSport] = useState<Sport>(workout?.sport ?? "run");
+  const [sport, setSport] = useState<Sport>(base?.sport ?? "run");
 
   const showDistance = sport !== "strength";
   const errors = state.fieldErrors ?? {};
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form
+      key={workout?.id ?? template?.id ?? "blank"}
+      action={formAction}
+      className="space-y-6"
+    >
       <input type="hidden" name="athleteId" value={athleteId} />
+
+      {!workout && (templates?.length ?? 0) > 0 && (
+        <div className="space-y-2">
+          <Label htmlFor="template">Start from template</Label>
+          <select
+            id="template"
+            className={selectClassName}
+            value={template?.id ?? ""}
+            onChange={(e) => {
+              const t = templates!.find((x) => x.id === e.target.value) ?? null;
+              setTemplate(t);
+              if (t) setSport(t.sport);
+            }}
+          >
+            <option value="">Blank workout</option>
+            {templates!.map((t) => (
+              <option key={t.id} value={t.id}>
+                {SPORTS[t.sport].label} · {t.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
         <div className="space-y-2 sm:col-span-2 lg:col-span-3">
@@ -57,7 +98,7 @@ export function WorkoutForm({
           <Input
             id="title"
             name="title"
-            defaultValue={workout?.title ?? ""}
+            defaultValue={workout?.title ?? template?.name ?? ""}
             placeholder="e.g. Long run, FTP intervals, Upper body"
           />
           <FieldError errors={errors.title} />
@@ -120,8 +161,8 @@ export function WorkoutForm({
               step="1"
               min="0"
               defaultValue={
-                workout?.plannedDurationSec
-                  ? Math.round(workout.plannedDurationSec / 60)
+                base?.plannedDurationSec
+                  ? Math.round(base.plannedDurationSec / 60)
                   : ""
               }
             />
@@ -137,9 +178,7 @@ export function WorkoutForm({
                 step="0.1"
                 min="0"
                 defaultValue={
-                  workout?.plannedDistanceM
-                    ? workout.plannedDistanceM / 1000
-                    : ""
+                  base?.plannedDistanceM ? base.plannedDistanceM / 1000 : ""
                 }
               />
               <FieldError errors={errors.plannedDistanceKm} />
@@ -157,7 +196,7 @@ export function WorkoutForm({
               name="description"
               rows={3}
               className="lg:h-full lg:min-h-9"
-              defaultValue={workout?.description ?? ""}
+              defaultValue={base?.description ?? ""}
               placeholder="Prescription: intervals, zones, exercises…"
             />
           </div>
@@ -165,7 +204,9 @@ export function WorkoutForm({
             <Label>Structure (optional)</Label>
             <StructureBuilder
               name="structureJson"
-              initial={workout?.structure}
+              initial={base?.structure}
+              sport={sport}
+              thresholds={thresholds}
             />
           </div>
         </div>

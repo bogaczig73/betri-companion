@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { WorkoutForm } from "@/components/workout-form";
 import { canAccessAthlete, getUserById } from "@/lib/access";
 import { getActingUser } from "@/lib/acting-user";
+import { getTemplatesForUser } from "@/lib/templates";
+import { getCurrentThresholds } from "@/lib/thresholds";
 
 export default async function NewWorkoutPage({
   searchParams,
@@ -22,6 +24,11 @@ export default async function NewWorkoutPage({
   const athlete = await getUserById(athleteId);
   if (!athlete) redirect("/");
 
+  const [templates, thresholds] = await Promise.all([
+    getTemplatesForUser(actingUser.id),
+    getCurrentThresholds(athleteId),
+  ]);
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
@@ -30,6 +37,8 @@ export default async function NewWorkoutPage({
       </div>
       <WorkoutForm
         athleteId={athleteId}
+        templates={templates}
+        thresholds={thresholds}
         defaultDate={
           dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
             ? dateParam

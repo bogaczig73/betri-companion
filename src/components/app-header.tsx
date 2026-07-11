@@ -19,6 +19,7 @@ export function AppHeader({
       ? ([
           { href: "/athletes", label: "Athletes", icon: "athletes" },
           { href: "/plans", label: "Plans", icon: "plans" },
+          { href: "/templates", label: "Templates", icon: "templates" },
         ] satisfies NavItem[])
       : []),
     ...(actingUser
