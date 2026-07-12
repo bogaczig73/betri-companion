@@ -13,7 +13,8 @@
     "db:seed": "tsx src/db/seed.ts",
     "validate:lactate": "tsx scripts/validate-lactate.ts",
     "import:tp": "tsx scripts/import-trainingpeaks.ts",
-    "check:tss": "tsx scripts/check-tss.ts"
+    "check:tss": "tsx scripts/check-tss.ts",
+    "check:plan-generator": "tsx scripts/check-plan-generator.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",

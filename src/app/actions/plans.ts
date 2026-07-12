@@ -11,6 +11,7 @@ import {
   planAssignments,
   plannedSessions,
   planWeeks,
+  raceTypeEnum,
   sportEnum,
   trainingPlans,
   workouts,
@@ -19,6 +20,11 @@ import {
 } from "@/db/schema";
 import { canAccessAthlete } from "@/lib/access";
 import { getActingUser } from "@/lib/acting-user";
+import {
+  generatePlan,
+  RACE_TYPES,
+  type GeneratorParams,
+} from "@/lib/plan-generator";
 import { getPlanById } from "@/lib/plans";
 import { structureField, totalDurationSec } from "@/lib/structure";
 
@@ -415,4 +421,104 @@ export async function assignPlan(planId: string, formData: FormData) {
 
   revalidatePath("/", "layout");
   revalidatePlan(id);
+}
+
+// ---------------------------------------------------------------------------
+// Generator (P8): create a full plan from race date + params
+// ---------------------------------------------------------------------------
+
+const generateInput = z.object({
+  name: z.string().trim().max(200).optional(),
+  raceType: z.enum(raceTypeEnum.enumValues),
+  raceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Race date is required"),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Start date is required"),
+  startWeeklyHours: z.coerce.number().min(2).max(30),
+  rampPct: z.coerce.number().min(2).max(15).default(8),
+  buildRecoveryPattern: z.enum(["3:1", "2:1"]).default("3:1"),
+  swimPerWeek: z.coerce.number().int().min(0).max(5).default(2),
+  bikePerWeek: z.coerce.number().int().min(0).max(5).default(3),
+  runPerWeek: z.coerce.number().int().min(0).max(5).default(3),
+  strengthPerWeek: z.coerce.number().int().min(0).max(3).default(1),
+  longSessionDay: z.coerce.number().int().min(0).max(6).default(5),
+});
+
+export type GeneratePlanState = { error?: string };
+
+export async function createGeneratedPlan(
+  _prev: GeneratePlanState,
+  formData: FormData,
+): Promise<GeneratePlanState> {
+  const actingUser = await requireCoach();
+
+  const parsed = generateInput.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+  const input = parsed.data;
+
+  const params: GeneratorParams = {
+    raceType: input.raceType,
+    raceDate: input.raceDate,
+    startDate: input.startDate,
+    startWeeklyHours: input.startWeeklyHours,
+    rampPct: input.rampPct,
+    buildRecoveryPattern: input.buildRecoveryPattern,
+    sessionsPerWeek: {
+      swim: input.swimPerWeek,
+      bike: input.bikePerWeek,
+      run: input.runPerWeek,
+      strength: input.strengthPerWeek,
+    },
+    longSessionDay: input.longSessionDay,
+  };
+
+  let generated: ReturnType<typeof generatePlan>;
+  try {
+    generated = generatePlan(params);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Generation failed" };
+  }
+
+  const label = RACE_TYPES[input.raceType].label;
+  const [plan] = await db
+    .insert(trainingPlans)
+    .values({
+      name: input.name || `${label} — ${input.raceDate}`,
+      description: `Generated ${generated.totalWeeks}-week plan toward ${label} on ${input.raceDate}. Edit freely.`,
+      createdById: actingUser.id,
+      raceDate: input.raceDate,
+      raceType: input.raceType,
+      generatorParams: params,
+    })
+    .returning();
+
+  const weekRows = await db
+    .insert(planWeeks)
+    .values(
+      generated.weeks.map((w) => ({
+        planId: plan.id,
+        weekNumber: w.weekNumber,
+        phase: w.phase,
+        notes: w.notes,
+      })),
+    )
+    .returning();
+  const weekIdByNumber = new Map(weekRows.map((w) => [w.weekNumber, w.id]));
+
+  await db.insert(plannedSessions).values(
+    generated.weeks.flatMap((w) =>
+      w.sessions.map((s) => ({
+        weekId: weekIdByNumber.get(w.weekNumber)!,
+        dayOfWeek: s.dayOfWeek,
+        sport: s.sport,
+        title: s.title,
+        description: s.description,
+        plannedDurationSec: s.plannedDurationSec,
+        structure: s.structure,
+      })),
+    ),
+  );
+
+  revalidatePath("/plans");
+  redirect(`/plans/${plan.id}`);
 }

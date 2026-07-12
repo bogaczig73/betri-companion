@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, Sparkles } from "lucide-react";
 
 import { createPlan } from "@/app/actions/plans";
 import { EmptyState } from "@/components/empty-state";
@@ -64,13 +64,22 @@ export default async function PlansPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Training plans
-        </h1>
-        <p className="text-muted-foreground">
-          Build week-by-week plans and assign them to athletes.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Training plans
+          </h1>
+          <p className="text-muted-foreground">
+            Build week-by-week plans and assign them to athletes.
+          </p>
+        </div>
+        <Button
+          nativeButton={false}
+          render={<Link href="/plans/generate" />}
+        >
+          <Sparkles className="size-4" />
+          Generate from race date
+        </Button>
       </div>
 
       <Card>

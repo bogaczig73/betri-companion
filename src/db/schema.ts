@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { LibraryAnswer } from "@/lib/citations";
+import type { GeneratorParams } from "@/lib/plan-generator";
 import type { WorkoutStructure } from "@/lib/structure";
 import type { TimeInZones, ZoneOverrides } from "@/lib/zones";
 
@@ -104,6 +105,13 @@ export const periodizationPhaseEnum = pgEnum("periodization_phase", [
   "race",
 ]);
 
+export const raceTypeEnum = pgEnum("race_type", [
+  "sprint",
+  "olympic",
+  "half_ironman",
+  "ironman",
+]);
+
 // ---------------------------------------------------------------------------
 // Training plans
 // ---------------------------------------------------------------------------
@@ -119,6 +127,11 @@ export const trainingPlans = pgTable("training_plans", {
     .notNull()
     .references(() => users.id),
   isTemplate: boolean("is_template").notNull().default(false),
+  // Set when the plan was produced by the generator (see
+  // src/lib/plan-generator.ts); params kept so a plan can be regenerated.
+  raceDate: date("race_date"),
+  raceType: raceTypeEnum("race_type"),
+  generatorParams: jsonb("generator_params").$type<GeneratorParams>(),
   ...timestamps,
 });
 
